@@ -10,12 +10,13 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
+        ("travels", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name="Travel",
+            name="Booking",
             fields=[
                 (
                     "id",
@@ -26,27 +27,34 @@ class Migration(migrations.Migration):
                         verbose_name="ID",
                     ),
                 ),
-                ("origin_country", models.CharField(max_length=50)),
-                ("origin_city", models.CharField(max_length=50)),
-                ("destination_country", models.CharField(max_length=50)),
-                ("destination_city", models.CharField(max_length=50)),
-                ("departure_date", models.DateField()),
+                ("seats_booked", models.PositiveIntegerField()),
                 (
-                    "transport_type",
+                    "booking_status",
                     models.CharField(
-                        choices=[("car", "Car"), ("bus", "Bus"), ("van", "Van")],
+                        choices=[
+                            ("pending", "Pending"),
+                            ("confirmed", "Confirmed"),
+                            ("cancelled", "Cancelled"),
+                        ],
+                        default="pending",
                         max_length=10,
                     ),
                 ),
-                ("available_seats", models.PositiveIntegerField()),
-                ("description", models.TextField(blank=True)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 (
-                    "driver",
+                    "passenger",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name="travels",
+                        related_name="bookings",
                         to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "travel",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="bookings",
+                        to="travels.travel",
                     ),
                 ),
             ],
