@@ -7,7 +7,7 @@ from .models import UserProfile
 class SignupSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ['username', 'email', 'password', 'phone_number']
+        fields = ['full_name','username' ,'email', 'phone_number', 'password']
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
@@ -18,6 +18,7 @@ class SignupSerializer(serializers.ModelSerializer):
             message=f"Your verification code is: {code}",
             from_email="no-reply@travelshare.com",
             recipient_list=[user.email],
+            fail_silently=False,
         )
         return user
 

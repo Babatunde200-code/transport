@@ -4,6 +4,8 @@ from django.conf import settings
 import random
 
 class CustomUser(AbstractUser):
+    username = models.CharField(max_length=150, unique=True)
+    full_name = models.CharField(max_length=255, default='Anonymous User')
     email = models.EmailField(unique=True)
     phone_number = models.CharField(max_length=20, blank=True)
     is_verified = models.BooleanField(default=False)
