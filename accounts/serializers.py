@@ -13,10 +13,11 @@ class SignupSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = CustomUser.objects.create_user(**validated_data)
         code = user.generate_verification_code()
+        print(user.email)
         send_mail(
             subject="Verify your account",
             message=f"Your verification code is: {code}",
-            from_email="no-reply@travelshare.com",
+            from_email="hi@demomailtrap.co",
             recipient_list=[user.email],
             fail_silently=False,
         )

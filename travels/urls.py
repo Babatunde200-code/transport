@@ -1,7 +1,11 @@
 from django.urls import path
-from .views import TravelListCreateView, TravelDetailView
+from .views import TravelPlanView, BookingView, accept_booking
+
+# travels/urls.py
 
 urlpatterns = [
-    path('', TravelListCreateView.as_view()),
-    path('<int:pk>/', TravelDetailView.as_view()),
+    path('plans/', TravelPlanView.as_view()),
+    path('bookings/', BookingView.as_view()),
+    path('bookings/<int:pk>/accept/', accept_booking),
 ]
+

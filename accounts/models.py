@@ -3,6 +3,9 @@ from django.db import models
 from django.conf import settings
 import random
 
+
+
+
 class CustomUser(AbstractUser):
     username = models.CharField(max_length=150, unique=True)
     full_name = models.CharField(max_length=255, default='Anonymous User')
@@ -30,6 +33,7 @@ class UserProfile(models.Model):
     state = models.CharField(max_length=50, blank=True)
     city = models.CharField(max_length=50, blank=True)
     bio = models.TextField(blank=True)
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="profile")
     profile_photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
 
     def __str__(self):

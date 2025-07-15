@@ -1,8 +1,16 @@
 from rest_framework import serializers
-from .models import Travel
+from .models import TravelPlan
+from travels.models import Booking
 
-class TravelSerializer(serializers.ModelSerializer):
+# travels/serializers.py
+
+class TravelPlanSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Travel
+        model = TravelPlan
         fields = '__all__'
-        read_only_fields = ['driver']
+
+class BookingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Booking
+        fields = '__all__'
+

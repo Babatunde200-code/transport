@@ -8,16 +8,20 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from .models import UserProfile
 from .serializers import UserProfileSerializer
+from rest_framework.permissions import AllowAny
 
 class SignupView(APIView):
+    permission_classes = [AllowAny]  
+
     def post(self, request):
         serializer = SignupSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({"detail": "Verification code sent to your email"}, status=201)
-        return Response(serializer.errors, status=400)
+            return Response({'message': 'Verification code sent to your email'}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class VerifyAccountView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         serializer = VerifyAccountSerializer(data=request.data)
         if serializer.is_valid():
@@ -29,6 +33,7 @@ class VerifyAccountView(APIView):
         return Response(serializer.errors, status=400)
 
 class LoginView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():

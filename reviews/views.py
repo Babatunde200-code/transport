@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from .models import Review
 from .serializers import ReviewSerializer
-from travels.models import Travel
+from travels.models import TravelPlan
 from accounts.models import CustomUser
 
 class ReviewListCreateView(APIView):
