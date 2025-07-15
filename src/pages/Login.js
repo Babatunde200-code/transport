@@ -30,9 +30,9 @@ const Login = () => {
 
       const data = await res.json();
       if (res.ok) {
-        localStorage.setItem('access_token', data.access);
+        localStorage.setItem('access_token', data.access); 
         localStorage.setItem('refresh_token', data.refresh);
-        navigate('/dashboard');
+        navigate('/book');
       } else {
         setError(data.message || 'Invalid login credentials.');
       }

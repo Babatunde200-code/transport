@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 const VerifyToken = () => {
   const [email, setEmail] = useState("");
-  const [token, setToken] = useState("");
+  const [code, setToken] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const navigate = useNavigate();
@@ -17,7 +17,7 @@ const VerifyToken = () => {
     try {
       const response = await axios.post("http://127.0.0.1:8000/auth/verify/", {
         email,
-        token,
+        code,
       });
 
       setSuccess("Verification successful! You can now log in.");
@@ -63,7 +63,7 @@ const VerifyToken = () => {
             <input
               type="text"
               className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring focus:border-blue-300"
-              value={token}
+              value={code}
               onChange={(e) => setToken(e.target.value)}
               required
               placeholder="Enter the token sent to your email"
