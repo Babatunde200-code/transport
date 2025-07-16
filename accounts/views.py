@@ -9,6 +9,10 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from .models import UserProfile
 from .serializers import UserProfileSerializer
 from rest_framework.permissions import AllowAny
+from django.contrib.auth.models import User
+from django.core.mail import send_mail
+from django.utils.crypto import get_random_string
+from django.contrib.auth.tokens import default_token_generator
 
 class SignupView(APIView):
     permission_classes = [AllowAny]  
@@ -72,3 +76,38 @@ class ProfilePhotoUploadView(APIView):
         profile.profile_photo = request.FILES.get('profile_photo')
         profile.save()
         return Response({"detail": "Profile photo updated."})
+
+
+class PasswordResetRequestView(APIView):
+    def post(self, request):
+        email = request.data.get('email')
+        try:
+            user = User.objects.get(email=email)
+            token = default_token_generator.make_token(user)
+            reset_link = f"http://localhost:3000/reset-password/{user.pk}/{token}"
+            
+            send_mail(
+                'Reset your password',
+                f'Click the link to reset your password: {reset_link}',
+                'no-reply@translink.com',
+                [email],
+            )
+            return Response({"message": "Password reset link sent!"})
+        except User.DoesNotExist:
+            return Response({"error": "User with this email does not exist."}, status=404)
+        
+from django.contrib.auth.tokens import default_token_generator
+
+class PasswordResetConfirmView(APIView):
+    def post(self, request, uid, token):
+        try:
+            user = User.objects.get(pk=uid)
+            if not default_token_generator.check_token(user, token):
+                return Response({"error": "Invalid or expired token"}, status=400)
+            
+            password = request.data.get('password')
+            user.set_password(password)
+            user.save()
+            return Response({"message": "Password reset successful"})
+        except User.DoesNotExist:
+            return Response({"error": "Invalid user ID"}, status=400)
