@@ -13,7 +13,9 @@ from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.utils.crypto import get_random_string
 from django.contrib.auth.tokens import default_token_generator
+from django.contrib.auth import get_user_model
 
+User = get_user_model()
 class SignupView(APIView):
     permission_classes = [AllowAny]  
 
@@ -79,6 +81,7 @@ class ProfilePhotoUploadView(APIView):
 
 
 class PasswordResetRequestView(APIView):
+    permission_classes = [AllowAny] 
     def post(self, request):
         email = request.data.get('email')
         try:
@@ -96,9 +99,9 @@ class PasswordResetRequestView(APIView):
         except User.DoesNotExist:
             return Response({"error": "User with this email does not exist."}, status=404)
         
-from django.contrib.auth.tokens import default_token_generator
 
 class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny] 
     def post(self, request, uid, token):
         try:
             user = User.objects.get(pk=uid)
