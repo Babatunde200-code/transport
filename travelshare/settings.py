@@ -43,7 +43,8 @@ ALLOWED_HOSTS = [
     ".onrender.com",  # allows any subdomain of Render
 ]
 # Application definition
-
+ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost").split(" ")
+DJANGO_ALLOWED_HOSTS = https://transport-2-0imo.onrender.com/
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
