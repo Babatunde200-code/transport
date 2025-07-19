@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: transport-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn transport.wsgi:application
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: transport.settings
+      - key: SECRET_KEY
+        value: your-secret-key-here
+      - key: ALLOWED_HOSTS
+        value: your-subdomain.onrender.com
+databases:
+  - name: transport-db
+    databaseName: transport
+    user: transport_user
+    plan: free
+    region: oregon
