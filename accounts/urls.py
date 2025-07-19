@@ -5,7 +5,7 @@ from .views import ProfileView, ProfilePhotoUploadView
 from .views import PasswordResetRequestView, PasswordResetConfirmView
 
 urlpatterns = [
-    path('signup/', SignupView.as_view()),
+    path('', SignupView.as_view()),
     path('login/', LoginView.as_view()),
     path('verify/', VerifyAccountView.as_view()),
     path('profile/', ProfileView.as_view()),
