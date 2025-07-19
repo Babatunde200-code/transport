@@ -16,6 +16,7 @@ from pathlib import Path
 import ssl
 import certifi
 ssl_context = ssl.create_default_context(cafile=certifi.where())
+import os
 
 
 
@@ -36,6 +37,11 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    ".onrender.com",  # allows any subdomain of Render
+]
 # Application definition
 
 INSTALLED_APPS = [
