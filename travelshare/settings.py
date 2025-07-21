@@ -1,20 +1,26 @@
 from pathlib import Path
+import os
 import ssl
 import certifi
-import os
+import dj_database_url
 
+# SSL context for secure certs
 ssl_context = ssl.create_default_context(cafile=certifi.where())
 
+# Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-so%v9*$eloe^!7w9tai1phx87q-w%xvgr=g@19nylb7_!!($jw"
+
+# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    "transport-2-0imo.onrender.com",  # ✅ your Render backend domain
-    "transport-frontend-jet.vercel.app",  # ✅ your Vercel frontend domain
+    "transport-2-0imo.onrender.com",  # Your Render backend domain
+    "transport-frontend-jet.vercel.app",  # Your Vercel frontend domain
     "postman",
 ]
 
@@ -69,17 +75,10 @@ WSGI_APPLICATION = "travelshare.wsgi.application"
 
 # Database
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'transport',
-        'USER': 'postgres',
-        'PASSWORD': 'PeruPara',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
+    'default': dj_database_url.config(default=os.getenv('DATABASE_URL'))
 }
 
-# REST framework
+# REST framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -95,27 +94,18 @@ AUTHENTICATION_BACKENDS = [
 
 AUTH_USER_MODEL = 'accounts.CustomUser'
 
-# Media
+# Media & Static files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Static files
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
-    },
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
 # Internationalization
@@ -126,21 +116,22 @@ USE_TZ = True
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# CORS
-CORS_ALLOW_ALL_ORIGINS = False  # ❌ safer in production
+# CORS settings
+CORS_ALLOW_ALL_ORIGINS = False  # safer for production
 CORS_ALLOWED_ORIGINS = [
-    "https://transport-frontend-jet.vercel.app",  # ✅ your frontend
+    "https://transport-frontend-jet.vercel.app",
 ]
 
+# CSRF
 CSRF_TRUSTED_ORIGINS = [
     "https://transport-frontend-jet.vercel.app",
     "https://transport-2-0imo.onrender.com",
 ]
 
-# Email backend
+# Email configuration (for password reset, signup confirmation, etc.)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'tunde200.james@gmail.com'
-EMAIL_HOST_PASSWORD = 'hnta tpgr idwo yrbg'  # ✅ Gmail App Password
+EMAIL_HOST_PASSWORD = 'hnta tpgr idwo yrbg'  # Gmail App Password
