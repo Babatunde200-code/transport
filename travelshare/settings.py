@@ -37,14 +37,13 @@ DEBUG = True
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    "https://transport-2-0imo.onrender.com",
-    "http://transport-frontend-jet.vercel.app",
-    "postman"  # Optionally allow postman host headers
+    "transport-2-oimo.onrender.com",            # your backend
+    "transport-frontend-jet.vercel.app",        # your frontend
 ]
 
 
+
 # Application definition
-ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost").split(" ")
 DJANGO_ALLOWED_HOSTS = "https://transport-2-0imo.onrender.com"
 INSTALLED_APPS = [
     "django.contrib.admin",
