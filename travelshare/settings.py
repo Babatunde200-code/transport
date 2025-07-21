@@ -34,15 +34,6 @@ SECRET_KEY = "django-insecure-so%v9*$eloe^!7w9tai1phx87q-w%xvgr=g@19nylb7_!!($jw
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "localhost",
-    "transport-2-oimo.onrender.com",  # ✅ Must be exact, no http/https
-    "transport-frontend-jet.vercel.app",
-]
-
-
-
 # Application definition
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost").split(" ")
 DJANGO_ALLOWED_HOSTS = "https://transport-2-0imo.onrender.com"
@@ -88,6 +79,13 @@ CSRF_TRUSTED_ORIGINS = [
     "https://transport-2-0imo.onrender.com"
 ]
 
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    "transport-2-oimo.onrender.com",
+    "transport-frontend-jet.vercel.app",
+    "postman",
+]
 
 
 
