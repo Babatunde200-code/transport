@@ -34,14 +34,14 @@ SECRET_KEY = "django-insecure-so%v9*$eloe^!7w9tai1phx87q-w%xvgr=g@19nylb7_!!($jw
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
-
 ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    'transport-2-0imo.onrender.com'
+    "127.0.0.1",
+    "localhost",
+    "https://transport-2-0imo.onrender.com",
+    "http://transport-frontend-jet.vercel.app",
+    "postman"  # Optionally allow postman host headers
 ]
+
 
 # Application definition
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost").split(" ")
@@ -64,6 +64,7 @@ INSTALLED_APPS = [
 
 ]
 
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -80,12 +81,14 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 # OR for specific origins:
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
+    "https://transport-2-0imo.onrender.com", 
 ]
-CORS_ALLOWED_ORIGINS = [
-    "https://transport-frontend-jet.vercel.app/",
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://transport-2-0imo.onrender.com"
+    "http://transport-frontend-jet.vercel.app"
 ]
+
 
 
 
