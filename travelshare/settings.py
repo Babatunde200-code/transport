@@ -37,13 +37,14 @@ DEBUG = True
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    "transport-2-oimo.onrender.com",            # your backend
-    "transport-frontend-jet.vercel.app",        # your frontend
+    "transport-2-oimo.onrender.com",  # ✅ Must be exact, no http/https
+    "transport-frontend-jet.vercel.app",
 ]
 
 
 
 # Application definition
+ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost").split(" ")
 DJANGO_ALLOWED_HOSTS = "https://transport-2-0imo.onrender.com"
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -85,7 +86,6 @@ CORS_ALLOWED_ORIGINS = [
 
 CSRF_TRUSTED_ORIGINS = [
     "https://transport-2-0imo.onrender.com"
-    "http://transport-frontend-jet.vercel.app"
 ]
 
 
