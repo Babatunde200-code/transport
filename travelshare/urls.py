@@ -19,9 +19,11 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import JsonResponse
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('', lambda request: JsonResponse({"status": "Server is live"})),
     path('', include('accounts.urls')),
     path('api/travel/', include('travels.urls')),
     path('api/booking/', include('booking.urls')),
