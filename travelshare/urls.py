@@ -24,7 +24,7 @@ from django.http import JsonResponse
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', lambda request: JsonResponse({"status": "Server is live"})),
-    path('', include('accounts.urls')),
+    path('api/', include('accounts.urls')),
     path('api/travel/', include('travels.urls')),
     path('api/booking/', include('booking.urls')),
     path('api/booking/', include('booking.urls')),
