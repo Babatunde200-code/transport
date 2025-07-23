@@ -3,6 +3,9 @@ from .models import Booking
 from .serializers import BookingSerializer
 from django.core.mail import send_mail
 from django.conf import settings
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
+from rest_framework.response import Response
 
 class BookingCreateView(generics.CreateAPIView):
     queryset = Booking.objects.all()
@@ -22,3 +25,10 @@ class BookingCreateView(generics.CreateAPIView):
             f"Thank you for using our service!"
         )
         send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [booking.user.email])
+class UserBookingListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        bookings = Booking.objects.filter(user=request.user).order_by('-travel_date')
+        serializer = BookingSerializer(bookings, many=True)
+        return Response(serializer.data)
