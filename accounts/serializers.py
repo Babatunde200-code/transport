@@ -40,15 +40,23 @@ class VerifyAccountSerializer(serializers.Serializer):
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
-
-    def validate(self, data):
-        user = authenticate(username=data['email'], password=data['password'])
-        if not user:
-            raise serializers.ValidationError("Invalid credentials")
-        if not user.is_verified:
-            raise serializers.ValidationError("Account not verified")
-        return {'user': user}
     
+    def validate(self, data):
+        email = data.get('email')
+        password = data.get('password')
+
+        if email and password:
+            user = authenticate(username=email, password=password)
+            if user:
+                if not user.is_verified:
+                    raise serializers.ValidationError("Account not verified.")
+                data['user'] = user
+            else:
+                raise serializers.ValidationError("Invalid credentials.")
+        else:
+            raise serializers.ValidationError("Must include email and password.")
+
+        return data
 ## serializer for user profile
 
 class UserProfileSerializer(serializers.ModelSerializer):
