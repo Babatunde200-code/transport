@@ -4,6 +4,8 @@ import ssl
 import certifi
 import dj_database_url
 
+from datetime import timedelta
+
 ssl_context = ssl.create_default_context(cafile=certifi.where())
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -15,8 +17,8 @@ DEBUG = True
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    "transport-2-0imo.onrender.com",  # ✅ your Render backend domain
-    "transport-frontend-jet.vercel.app",  # ✅ your Vercel frontend domain
+    "transport-2-0imo.onrender.com",
+    "transport-frontend-jet.vercel.app",
     "postman",
 ]
 
@@ -86,6 +88,12 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
 AUTHENTICATION_BACKENDS = [
