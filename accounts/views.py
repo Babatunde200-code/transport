@@ -15,6 +15,8 @@ from django.utils.crypto import get_random_string
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth import get_user_model
 
+
+
 User = get_user_model()
 class SignupView(APIView):
     permission_classes = [AllowAny]  

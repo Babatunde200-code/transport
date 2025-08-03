@@ -3,7 +3,7 @@ from django.core.mail import send_mail
 from django.contrib.auth import authenticate
 from .models import CustomUser
 from .models import UserProfile
-
+from .utils import get_tokens_for_user
 class SignupSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
