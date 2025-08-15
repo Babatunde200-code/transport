@@ -4,6 +4,8 @@ import ssl
 import certifi
 import dj_database_url
 from datetime import timedelta
+from django.conf import settings
+from django.conf.urls.static import static
 
 ssl_context = ssl.create_default_context(cafile=certifi.where())
 
@@ -12,6 +14,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-so%v9*$eloe^!7w9tai1phx87q-w%xvgr=g@19nylb7_!!($jw"
 
 DEBUG = True
+
+urlpatterns = [
+    ...
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
