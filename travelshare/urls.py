@@ -25,7 +25,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', lambda request: JsonResponse({"status": "Server is live"})),
     path('api/', include('accounts.urls')),
-    path('api/', include('travels.urls')),
+    path('api/travel/', include('travels.urls')),
     path('api/booking/', include('booking.urls')),
     path('reviews/', include('reviews.urls')),
 
