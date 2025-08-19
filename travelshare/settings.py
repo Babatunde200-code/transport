@@ -22,11 +22,13 @@ ALLOWED_HOSTS = env.list(
         "localhost",
         "127.0.0.1",
         "transport-2-0imo.onrender.com",
+        ".onrender.com",  # ✅ allow all Render subdomains
         "asaptravels.ng",
-        ".asaptravels.ng",  # subdomains
+        ".asaptravels.ng",  # ✅ allow subdomains
         "transport-frontend-jet.vercel.app",
     ],
 )
+
 
 # Applications
 INSTALLED_APPS = [
