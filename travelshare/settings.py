@@ -7,9 +7,7 @@ import environ
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Environment setup
-env = environ.Env(
-    DEBUG=(bool, False)
-)
+env = environ.Env(DEBUG=(bool, False))
 environ.Env.read_env(BASE_DIR / ".env")
 
 # Security
@@ -22,7 +20,7 @@ ALLOWED_HOSTS = env.list(
         "localhost",
         "127.0.0.1",
         "asaptravels.ng",
-        ".asaptravels.ng",  # allows subdomains
+        ".asaptravels.ng",  # subdomains
         "transport-frontend-jet.vercel.app",
     ],
 )
@@ -51,9 +49,9 @@ INSTALLED_APPS = [
 
 # Middleware
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",  # must be high in the chain
+    "corsheaders.middleware.CorsMiddleware",  # keep this high
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",  # for static files
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -68,7 +66,7 @@ ROOT_URLCONF = "travelshare.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],  # useful if you need templates later
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -89,7 +87,7 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": env("DB_NAME", default="travelshare"),
         "USER": env("DB_USER", default="postgres"),
-        "PASSWORD": env("DB_PASSWORD", default="password"),
+        "PASSWORD": env("DB_PASSWORD", default="PeruPara"),
         "HOST": env("DB_HOST", default="localhost"),
         "PORT": env("DB_PORT", default="5432"),
     }
@@ -128,7 +126,7 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticated",
+        "rest_framework.permissions.AllowAny",  # ⚠️ change to IsAuthenticated in production
     ],
 }
 
@@ -137,7 +135,6 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
-    "UPDATE_LAST_LOGIN": False,
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,
     "AUTH_HEADER_TYPES": ("Bearer",),
@@ -163,5 +160,19 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_USE_TLS = True
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
-EMAIL_HOST_USER = env("EMAIL_HOST_USER", default=None)
-EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default=None)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+
+# Debugging for server errors (useful for now, remove later)
+if DEBUG:
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "handlers": {
+            "console": {"class": "logging.StreamHandler"},
+        },
+        "root": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+        },
+    }
