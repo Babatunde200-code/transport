@@ -7,12 +7,14 @@ import environ
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Environment setup
-env = environ.Env(DEBUG=(bool, False))
+env = environ.Env(
+    DEBUG=(bool, False)
+)
 environ.Env.read_env(BASE_DIR / ".env")
 
 # Security
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="unsafe-secret-key")
-DEBUG = env.bool("DEBUG", default=False)
+DEBUG = env.bool("DEBUG", default=True)  # ⚡ Enable Debug while testing errors
 
 ALLOWED_HOSTS = env.list(
     "ALLOWED_HOSTS",
@@ -49,9 +51,9 @@ INSTALLED_APPS = [
 
 # Middleware
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",  # keep this high
+    "corsheaders.middleware.CorsMiddleware",  
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -66,7 +68,7 @@ ROOT_URLCONF = "travelshare.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],  # useful if you need templates later
+        "DIRS": [BASE_DIR / "templates"],  # ⚡ For error pages like 500.html
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -120,13 +122,13 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Authentication
 AUTH_USER_MODEL = "accounts.CustomUser"
 
-# Django REST framework & JWT
+# DRF & JWT
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",  # ⚠️ change to IsAuthenticated in production
+        "rest_framework.permissions.AllowAny",  # ⚡ Signup/Login should not require auth
     ],
 }
 
@@ -162,17 +164,4 @@ EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
-
-# Debugging for server errors (useful for now, remove later)
-if DEBUG:
-    LOGGING = {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "handlers": {
-            "console": {"class": "logging.StreamHandler"},
-        },
-        "root": {
-            "handlers": ["console"],
-            "level": "DEBUG",
-        },
-    }
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER  # ⚡ Required to send mails
