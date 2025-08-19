@@ -14,7 +14,6 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
@@ -22,14 +21,16 @@ from django.conf.urls.static import static
 from django.http import JsonResponse
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('', lambda request: JsonResponse({"status": "Server is live"})),
-    path('api/', include('accounts.urls')),
-    path('api/travel/', include('travels.urls')),
-    path('api/booking/', include('booking.urls')),
-    path('reviews/', include('reviews.urls')),
+    path("admin/", admin.site.urls),
+    path("", lambda request: JsonResponse({"status": "Server is live"})),
 
-
-
+    # API routes
+    path("api/accounts/", include("accounts.urls")),
+    path("api/travel/", include("travels.urls")),
+    path("api/booking/", include("booking.urls")),
+    path("api/reviews/", include("reviews.urls")),
 ]
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
