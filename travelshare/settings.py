@@ -26,6 +26,11 @@ ALLOWED_HOSTS = [
     "transport-frontend-jet.vercel.app",
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://asaptravels.ng",
+    "https://*.asaptravels.ng",
+    "https://transport-frontend-jet.vercel.app",
+]
 
 
 # Applications
@@ -90,7 +95,7 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": env("DB_NAME", default="travelshare"),
         "USER": env("DB_USER", default="postgres"),
-        "PASSWORD": env("DB_PASSWORD", default="PeruPara"),
+        "PASSWORD": env("DB_PASSWORD", default=""),
         "HOST": env("DB_HOST", default="localhost"),
         "PORT": env("DB_PORT", default="5432"),
     }
@@ -132,6 +137,19 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.AllowAny",  # ⚡ Signup/Login should not require auth
     ],
 }
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+}
+
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
