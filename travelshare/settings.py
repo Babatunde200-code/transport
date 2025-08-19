@@ -184,5 +184,3 @@ EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER  # ⚡ Required to send mails
 
-
-print("ALLOWED_HOSTS:", ALLOWED_HOSTS)
