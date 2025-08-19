@@ -16,15 +16,14 @@ environ.Env.read_env(BASE_DIR / ".env")
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="unsafe-secret-key")
 DEBUG = env.bool("DEBUG", default=True)  # ⚡ Enable Debug while testing errors
 
-ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "transport-2-0imo.onrender.com",
-    "transport-2-0imo.onrender.com.cdn.render.com",  # Add CDN version
-    "asaptravels.ng",
-    ".asaptravels.ng",  # subdomains
-    "transport-frontend-jet.vercel.app",
+CORS_ALLOWED_ORIGINS = [
+    "https://www.asaptravels.ng",
+    "https://asaptravels.ng",  # without www
+    "https://transport-frontend-jet.vercel.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
+
 
 CSRF_TRUSTED_ORIGINS = [
     "https://asaptravels.ng",
