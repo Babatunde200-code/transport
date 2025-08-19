@@ -7,13 +7,14 @@ from .utils import get_tokens_for_user
 class SignupSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ['full_name','username' ,'email', 'phone_number', 'password']
+        fields = ['full_name', 'username', 'email', 'phone_number', 'password']
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
         user = CustomUser.objects.create_user(**validated_data)
-        code = user.generate_verification_code()
-        print(user.email)
+        code = user.generate_verification_code()  # store code in DB
+        print(user.email)  # debug only (remove in production)
+
         send_mail(
             subject="Verify your account",
             message=f"Your verification code is: {code}",
@@ -22,6 +23,7 @@ class SignupSerializer(serializers.ModelSerializer):
             fail_silently=False,
         )
         return user
+
 
 class VerifyAccountSerializer(serializers.Serializer):
     email = serializers.EmailField()
