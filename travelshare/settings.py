@@ -16,18 +16,16 @@ environ.Env.read_env(BASE_DIR / ".env")
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="unsafe-secret-key")
 DEBUG = env.bool("DEBUG", default=True)  # ⚡ Enable Debug while testing errors
 
-ALLOWED_HOSTS = env.list(
-    "ALLOWED_HOSTS",
-    default=[
-        "localhost",
-        "127.0.0.1",
-        "transport-2-0imo.onrender.com",
-        ".onrender.com",  # ✅ allow all Render subdomains
-        "asaptravels.ng",
-        ".asaptravels.ng",  # ✅ allow subdomains
-        "transport-frontend-jet.vercel.app",
-    ],
-)
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "transport-2-0imo.onrender.com",
+    "transport-2-0imo.onrender.com.cdn.render.com",  # Add CDN version
+    "asaptravels.ng",
+    ".asaptravels.ng",  # subdomains
+    "transport-frontend-jet.vercel.app",
+]
+
 
 
 # Applications
@@ -168,3 +166,6 @@ EMAIL_PORT = 587
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER  # ⚡ Required to send mails
+
+
+print("ALLOWED_HOSTS:", ALLOWED_HOSTS)
