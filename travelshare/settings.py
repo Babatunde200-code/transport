@@ -21,6 +21,7 @@ ALLOWED_HOSTS = env.list(
     default=[
         "localhost",
         "127.0.0.1",
+        "transport-2-0imo.onrender.com",
         "asaptravels.ng",
         ".asaptravels.ng",  # subdomains
         "transport-frontend-jet.vercel.app",
