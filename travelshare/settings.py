@@ -1,74 +1,58 @@
-import os
-from pathlib import Path
-from datetime import timedelta
-import environ
 
-# Base directory
+from pathlib import Path
+import os
+import environ
+from datetime import timedelta   # ✅ fixes your second error
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Environment setup
-env = environ.Env(
-    DEBUG=(bool, False)
-)
-environ.Env.read_env(BASE_DIR / ".env")
+env = environ.Env()
+environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
-# Security
-SECRET_KEY = env("DJANGO_SECRET_KEY", default="unsafe-secret-key")
-DEBUG = env.bool("DEBUG", default=True)  # ⚡ Enable Debug while testing errors
+
+
+# SECURITY
+SECRET_KEY = env("SECRET_KEY", default="change-me")
+DEBUG = env.bool("DEBUG", default=False)
 
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
-    "transport-2-0imo.onrender.com",
-    "transport-2-0imo.onrender.com.cdn.render.com",  # Add CDN version
     "asaptravels.ng",
-    ".asaptravels.ng",  # subdomains
-    "transport-frontend-jet.vercel.app",
+    ".asaptravels.ng",   # wildcard for subdomains
+    "transport-2-0imo.onrender.com",
+    ".onrender.com",     # covers other Render domains
 ]
-CORS_ALLOWED_ORIGINS = [
-    "https://www.asaptravels.ng",
-    "https://asaptravels.ng",  # without www
-    "https://transport-frontend-jet.vercel.app",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-
 
 CSRF_TRUSTED_ORIGINS = [
     "https://asaptravels.ng",
     "https://*.asaptravels.ng",
+    "https://transport-2-0imo.onrender.com",
     "https://transport-frontend-jet.vercel.app",
 ]
 
-
-# Applications
+# APPS
 INSTALLED_APPS = [
-    # Default Django apps
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-
-    # Third-party apps
     "rest_framework",
-    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
-
-    # Local apps
+    "rest_framework_simplejwt.token_blacklist",
     "accounts",
     "travels",
-    "booking",
     "reviews",
 ]
 
-# Middleware
+# MIDDLEWARE
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",  
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",  
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -76,13 +60,15 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-# URLs & WSGI
-ROOT_URLCONF = "travelshare.urls"
+ROOT_URLCONF = 'travelshare.urls'
+
+AUTH_USER_MODEL = "accounts.CustomUser"
+
 
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],  # ⚡ For error pages like 500.html
+        "DIRS": [],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -95,21 +81,21 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "travelshare.wsgi.application"
+WSGI_APPLICATION = 'travelshare.wsgi.application'
 
-# Database
+# DATABASE
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": env("DB_NAME", default="travelshare"),
-        "USER": env("DB_USER", default="postgres"),
-        "PASSWORD": env("DB_PASSWORD", default=""),
-        "HOST": env("DB_HOST", default="localhost"),
-        "PORT": env("DB_PORT", default="5432"),
+        "NAME": env("DB_NAME"),
+        "USER": env("DB_USER"),
+        "PASSWORD": env("DB_PASSWORD"),
+        "HOST": env("DB_HOST"),
+        "PORT": env("DB_PORT"),
     }
 }
 
-# Password validation
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -117,81 +103,54 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-# Internationalization
+# INTERNATIONALIZATION
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-# Static & Media
+# STATIC FILES
 STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Authentication
-AUTH_USER_MODEL = "accounts.CustomUser"
-
-# DRF & JWT
+# DJANGO REST FRAMEWORK
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": [
+    "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
-    ],
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",  # ⚡ Signup/Login should not require auth
-    ],
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
 }
 
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {
-        "console": {"class": "logging.StreamHandler"},
-    },
-    "root": {
-        "handlers": ["console"],
-        "level": "INFO",
-    },
-}
-
-
+# JWT
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
-    "ALGORITHM": "HS256",
-    "SIGNING_KEY": SECRET_KEY,
     "AUTH_HEADER_TYPES": ("Bearer",),
-    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
-    "USER_ID_FIELD": "id",
-    "USER_ID_CLAIM": "user_id",
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
 }
 
 # CORS
-CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://www.asaptravels.ng",
     "https://transport-frontend-jet.vercel.app",
 ]
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^https://.*\.asaptravels\.ng$",
-]
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGIN_REGEXES = [r"^https://.*\.asaptravels\.ng$"]
 
-# Email
+# EMAIL
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = env("EMAIL_HOST", default="smtp.gmail.com")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
 EMAIL_USE_TLS = True
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587
-EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
-EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER  # ⚡ Required to send mails
-
-
-print("ALLOWED_HOSTS:", ALLOWED_HOSTS)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER

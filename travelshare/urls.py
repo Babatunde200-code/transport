@@ -27,7 +27,6 @@ urlpatterns = [
     # API routes
     path("api/accounts/", include("accounts.urls")),
     path("api/travel/", include("travels.urls")),
-    path("api/booking/", include("booking.urls")),
     path("api/reviews/", include("reviews.urls")),
 ]
 

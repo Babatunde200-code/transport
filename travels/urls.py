@@ -1,18 +1,16 @@
 from django.urls import path
 from .views import (
     TravelPlanCreateView,
-    AvailableRidesListView,
-    BookingCreateView,
-    MyBookingsListView,
-    DriverBookingsListView,
-    BookingCancelView,
+    TravelPlanListCreateView,
+   TravelPlanDetailView,
+    BookingListCreateView,
+    BookingDetailView,
 )
 
 urlpatterns = [
     path("travel-plans/", TravelPlanCreateView.as_view(), name="travel-plans"),
-    path("available-rides/", AvailableRidesListView.as_view(), name="available-rides"),
-    path("book-ride/", BookingCreateView.as_view(), name="book-ride"),
-    path("my-bookings/", MyBookingsListView.as_view(), name="my-bookings"),
-    path("driver-bookings/", DriverBookingsListView.as_view(), name="driver-bookings"),
-    path("cancel-booking/<int:booking_id>/", BookingCancelView.as_view(), name="cancel-booking"),
+    path("available-rides/", TravelPlanListCreateView.as_view(), name="available-rides"),
+    path("book-ride/", TravelPlanDetailView.as_view(), name="book-ride"),
+    path("my-bookings/", BookingListCreateView.as_view(), name="my-bookings"),
+    path("cancel-booking/<int:booking_id>/", BookingDetailView.as_view(), name="cancel-booking"),
 ]
