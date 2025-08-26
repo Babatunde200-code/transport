@@ -1,15 +1,16 @@
-
 from pathlib import Path
 import os
 import environ
-from datetime import timedelta   # ✅ fixes your second error
+from datetime import timedelta
+import certifi
 
+
+# BASE DIR
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# ENV
 env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
-
-
 
 # SECURITY
 SECRET_KEY = env("SECRET_KEY", default="change-me")
@@ -39,9 +40,13 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+
+    # Third-party
     "rest_framework",
     "corsheaders",
     "rest_framework_simplejwt.token_blacklist",
+
+    # Local apps
     "accounts",
     "travels",
     "reviews",
@@ -60,15 +65,15 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'travelshare.urls'
+ROOT_URLCONF = "travelshare.urls"
 
 AUTH_USER_MODEL = "accounts.CustomUser"
 
-
+# TEMPLATES
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [os.path.join(BASE_DIR, "templates")],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -81,21 +86,26 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'travelshare.wsgi.application'
+WSGI_APPLICATION = "travelshare.wsgi.application"
 
-# DATABASE
+# DATABASE (MongoDB via djongo)
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": env("DB_NAME"),
-        "USER": env("DB_USER"),
-        "PASSWORD": env("DB_PASSWORD"),
-        "HOST": env("DB_HOST"),
-        "PORT": env("DB_PORT"),
+        "ENGINE": "djongo",
+        "NAME": env("MONGO_DB_NAME", default="transport_db"),
+        "ENFORCE_SCHEMA": False,   # helps avoid schema mismatch issues
+        "CLIENT": {
+            "host": env("MONGO_DB_URI"),
+            'tls': True,
+            'tlsCAFile': certifi.where(),
+        }
     }
 }
+# Example .env line:
+# MONGO_DB_URI=mongodb+srv://username:password@cluster0.od0rglj.mongodb.net/travelshare?retryWrites=true&w=majority&appName=Cluster0
+# MONGO_DB_NAME=travelshare
 
-
+# PASSWORD VALIDATORS
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -116,13 +126,14 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# DJANGO REST FRAMEWORK
+# DRF
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
+        "rest_framework.permissions.AllowAny",
     ),
 }
 

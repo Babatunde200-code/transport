@@ -4,25 +4,39 @@ from django.contrib.auth import authenticate
 from .models import CustomUser
 from .models import UserProfile
 from .utils import get_tokens_for_user
+from django.contrib.auth import get_user_model
+import random
+
+User = get_user_model()
+
 class SignupSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
     class Meta:
-        model = CustomUser
-        fields = ['full_name', 'username', 'email', 'phone_number', 'password']
-        extra_kwargs = {'password': {'write_only': True}}
+        model = User
+        fields = ["email", "username", "full_name", "phone_number", "password"]
 
     def create(self, validated_data):
-        user = CustomUser.objects.create_user(**validated_data)
-        code = user.generate_verification_code()  # store code in DB
-        print(user.email)  # debug only (remove in production)
+        password = validated_data.pop("password")
+        user = User(**validated_data)
+        user.set_password(password)
 
+        # Generate 6-digit verification code
+        code = str(random.randint(100000, 999999))
+        user.verification_code = code
+        user.save()
+
+        # Send verification email
         send_mail(
-            subject="Verify your account",
-            message=f"Your verification code is: {code}",
-            from_email="hi@demomailtrap.co",
+            subject="Verify Your Account",
+            message=f"Your verification code is {code}",
+            from_email=None,  # defaults to DEFAULT_FROM_EMAIL
             recipient_list=[user.email],
             fail_silently=False,
         )
+
         return user
+
 
 
 class VerifyAccountSerializer(serializers.Serializer):

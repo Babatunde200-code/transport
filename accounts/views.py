@@ -14,31 +14,39 @@ from django.core.mail import send_mail
 from django.utils.crypto import get_random_string
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth import get_user_model
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
-
-
-User = get_user_model()
 class SignupView(APIView):
-    permission_classes = [AllowAny]  
+    permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = SignupSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({'message': 'Verification code sent to your email'}, status=status.HTTP_201_CREATED)
+            return Response(
+                {"message": "Signup successful. Verification code sent to your email."},
+                status=status.HTTP_201_CREATED,
+            )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+User = get_user_model()
 
 class VerifyAccountView(APIView):
     permission_classes = [AllowAny]
+
     def post(self, request):
-        serializer = VerifyAccountSerializer(data=request.data)
-        if serializer.is_valid():
-            user = CustomUser.objects.get(email=serializer.validated_data['email'])
+        email = request.data.get("email")
+        code = request.data.get("code")
+
+        try:
+            user = User.objects.get(email=email, verification_code=code)
             user.is_verified = True
-            user.verification_code = ""
+            user.verification_code = None
             user.save()
-            return Response({"detail": "Account verified"})
-        return Response(serializer.errors, status=400)
+            return Response({"message": "Account verified successfully!"}, status=status.HTTP_200_OK)
+        except User.DoesNotExist:
+            return Response({"error": "Invalid code or email."}, status=status.HTTP_400_BAD_REQUEST)
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
