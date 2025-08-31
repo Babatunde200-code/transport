@@ -1,5 +1,3 @@
-# accounts/models.py
-
 from travelshare.mongo import get_db
 
 db = get_db()
