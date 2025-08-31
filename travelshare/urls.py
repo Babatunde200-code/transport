@@ -25,7 +25,7 @@ urlpatterns = [
     path("", lambda request: JsonResponse({"status": "Server is live"})),
 
     # API routes
-    path("api/accounts/", include("accounts.urls")),
+    path("api/", include("accounts.urls")),
     path("api/travel/", include("travels.urls")),
     path("api/reviews/", include("reviews.urls")),
 ]
