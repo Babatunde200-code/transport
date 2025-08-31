@@ -105,10 +105,6 @@ MONGO_URI = env(
     default="mongodb+srv://tunde200james:PeruPara@cluster0.od0rglj.mongodb.net/transport_db?retryWrites=true&w=majority&appName=Cluster0"
 )
 
-
-# ✅ inject into Django settings registry (for global use)
-setattr(django_settings, "db", db)
-
 # ==========================
 # PASSWORD VALIDATORS
 # ==========================
