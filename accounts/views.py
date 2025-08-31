@@ -1,134 +1,88 @@
-from rest_framework.views import APIView
+import random
 from rest_framework.response import Response
-from rest_framework import status
-from rest_framework_simplejwt.tokens import RefreshToken
-from .models import CustomUser
-from .serializers import SignupSerializer, VerifyAccountSerializer, LoginSerializer
+from rest_framework.views import APIView
+from .models import UserRepository
+from .utils import SignupSerializer
+from rest_framework import status, permissions
+from bson.objectid import ObjectId
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.parsers import MultiPartParser, FormParser
-from .models import UserProfile
-from .serializers import UserProfileSerializer
-from rest_framework.permissions import AllowAny
-from django.contrib.auth.models import User
-from django.core.mail import send_mail
-from django.utils.crypto import get_random_string
-from django.contrib.auth.tokens import default_token_generator
-from django.contrib.auth import get_user_model
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
+from .auth_utils import users, hash_password, check_password, generate_jwt
+
 
 class SignupView(APIView):
-    permission_classes = [AllowAny]
-
     def post(self, request):
         serializer = SignupSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(
-                {"message": "Signup successful. Verification code sent to your email."},
-                status=status.HTTP_201_CREATED,
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
 
-User = get_user_model()
+        data = serializer.validated_data
+        if UserRepository.find_by_email(data["email"]):
+            return Response({"error": "Email already exists"}, status=400)
+
+        verification_code = str(random.randint(100000, 999999))
+
+        UserRepository.create_user({
+            "full_name": data["full_name"],
+            "email": data["email"],
+            "phone_number": data["phone_number"],
+            "password": data["password"],  # TODO: hash before saving
+            "is_verified": False,
+            "verification_code": verification_code
+        })
+
+        return Response({"message": "Signup successful. Please verify your account."})
+
 
 class VerifyAccountView(APIView):
-    permission_classes = [AllowAny]
-
     def post(self, request):
         email = request.data.get("email")
         code = request.data.get("code")
 
-        try:
-            user = User.objects.get(email=email, verification_code=code)
-            user.is_verified = True
-            user.verification_code = None
-            user.save()
-            return Response({"message": "Account verified successfully!"}, status=status.HTTP_200_OK)
-        except User.DoesNotExist:
-            return Response({"error": "Invalid code or email."}, status=status.HTTP_400_BAD_REQUEST)
+        result = UserRepository.verify_user(email, code)
+        if result.modified_count == 0:
+            return Response({"error": "Invalid code or email"}, status=400)
+
+        return Response({"message": "Account verified successfully"})
+
+
+
+
+class RegisterView(APIView):
+    def post(self, request):
+        email = request.data.get("email")
+        password = request.data.get("password")
+
+        if users.find_one({"email": email}):
+            return Response({"error": "Email already registered"}, status=400)
+
+        hashed = hash_password(password)
+        user = {
+            "email": email,
+            "password": hashed,
+            "is_active": True
+        }
+        result = users.insert_one(user)
+        return Response({"message": "User created", "id": str(result.inserted_id)})
+
 
 class LoginView(APIView):
-    permission_classes = [AllowAny]
-
     def post(self, request):
-        serializer = LoginSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.validated_data['user']
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
-                "user": {
-                    "id": user.id,
-                    "email": user.email,
-                    "first_name": user.first_name,
-                    "last_name": user.last_name,
-                },
-            }, status=status.HTTP_200_OK)
+        email = request.data.get("email")
+        password = request.data.get("password")
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-## views for the users profile
+        user = users.find_one({"email": email})
+        if not user or not check_password(password, user["password"]):
+            return Response({"error": "Invalid credentials"}, status=400)
+
+        token = generate_jwt(user["_id"], user["email"])
+        return Response({"token": token})
+
 
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        profile = request.user.profile
-        serializer = UserProfileSerializer(profile)
-        return Response(serializer.data)
-
-    def put(self, request):
-        profile = request.user.profile
-        serializer = UserProfileSerializer(profile, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=400)
-
-class ProfilePhotoUploadView(APIView):
-    permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
-
-    def post(self, request):
-        profile = request.user.profile
-        profile.profile_photo = request.FILES.get('profile_photo')
-        profile.save()
-        return Response({"detail": "Profile photo updated."})
-
-
-class PasswordResetRequestView(APIView):
-    permission_classes = [AllowAny] 
-    def post(self, request):
-        email = request.data.get('email')
-        try:
-            user = User.objects.get(email=email)
-            token = default_token_generator.make_token(user)
-            reset_link = f"http://localhost:3000/reset-password/{user.pk}/{token}"
-            
-            send_mail(
-                'Reset your password',
-                f'Click the link to reset your password: {reset_link}',
-                'no-reply@translink.com',
-                [email],
-            )
-            return Response({"message": "Password reset link sent!"})
-        except User.DoesNotExist:
-            return Response({"error": "User with this email does not exist."}, status=404)
-        
-
-class PasswordResetConfirmView(APIView):
-    permission_classes = [AllowAny] 
-    def post(self, request, uid, token):
-        try:
-            user = User.objects.get(pk=uid)
-            if not default_token_generator.check_token(user, token):
-                return Response({"error": "Invalid or expired token"}, status=400)
-            
-            password = request.data.get('password')
-            user.set_password(password)
-            user.save()
-            return Response({"message": "Password reset successful"})
-        except User.DoesNotExist:
-            return Response({"error": "Invalid user ID"}, status=400)
+        return Response({
+            "message": "This is a protected route",
+            "user": request.user  # user comes from JWT payload
+        })

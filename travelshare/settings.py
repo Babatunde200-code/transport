@@ -3,6 +3,7 @@ import os
 import environ
 from datetime import timedelta
 import certifi
+from pymongo import MongoClient
 
 # BASE DIR
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -90,19 +91,9 @@ WSGI_APPLICATION = "travelshare.wsgi.application"
 # ==========================
 # DATABASE (MongoDB Atlas)
 # ==========================
-DATABASES = {
-    "default": {
-        "ENGINE": "djongo",
-        "NAME": env("MONGO_DB_NAME", default="transport_db"),
-        "CLIENT": {
-            "host": env(
-                "MONGO_DB_URI",
-                default="mongodb+srv://tunde200james:PeruPara@cluster0.od0rglj.mongodb.net/transport_db?retryWrites=true&w=majority&appName=Cluster0"
-            ),
-            "tlsCAFile": certifi.where(),
-        },
-    }
-}
+MONGO_URI = "mongodb+srv://tunde200james:PeruPara@cluster0.od0rglj.mongodb.net/transport_db?retryWrites=true&w=majority&appName=Cluster0"  # or Atlas URI
+client = MongoClient(MONGO_URI)
+db = client["transport_db"]
 
 # ==========================
 # PASSWORD VALIDATORS
@@ -135,13 +126,14 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # DRF
 # ==========================
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
-    ),
-    "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.IsAuthenticated",
-    ),
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "accounts.auth_backend.PyMongoJWTAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.AllowAny",
+    ],
 }
+
 
 # ==========================
 # JWT

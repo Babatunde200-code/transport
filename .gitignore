@@ -1,0 +1,6 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Django migrations (since we're moving to PyMongo)
+*/migrations/
