@@ -4,15 +4,19 @@ import environ
 from datetime import timedelta
 import certifi
 from pymongo import MongoClient
+from django.conf import settings as django_settings
 
-# BASE DIR
+# ==========================
+# BASE DIR & ENV
+# ==========================
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ENV
 env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
+# ==========================
 # SECURITY
+# ==========================
 SECRET_KEY = env("SECRET_KEY", default="change-me")
 DEBUG = env.bool("DEBUG", default=False)
 
@@ -32,7 +36,9 @@ CSRF_TRUSTED_ORIGINS = [
     "https://transport-frontend-jet.vercel.app",
 ]
 
+# ==========================
 # APPS
+# ==========================
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -52,7 +58,9 @@ INSTALLED_APPS = [
     "reviews",
 ]
 
+# ==========================
 # MIDDLEWARE
+# ==========================
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -69,7 +77,9 @@ ROOT_URLCONF = "travelshare.urls"
 
 AUTH_USER_MODEL = "accounts.CustomUser"
 
+# ==========================
 # TEMPLATES
+# ==========================
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -91,9 +101,16 @@ WSGI_APPLICATION = "travelshare.wsgi.application"
 # ==========================
 # DATABASE (MongoDB Atlas)
 # ==========================
-MONGO_URI = "mongodb+srv://tunde200james:PeruPara@cluster0.od0rglj.mongodb.net/transport_db?retryWrites=true&w=majority&appName=Cluster0"  # or Atlas URI
-client = MongoClient(MONGO_URI)
+MONGO_URI = env(
+    "MONGO_URI",
+    default="mongodb+srv://tunde200james:PeruPara@cluster0.od0rglj.mongodb.net/transport_db?retryWrites=true&w=majority&appName=Cluster0"
+)
+
+client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
 db = client["transport_db"]
+
+# ✅ inject into Django settings registry (for global use)
+setattr(django_settings, "db", db)
 
 # ==========================
 # PASSWORD VALIDATORS
@@ -127,13 +144,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ==========================
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "accounts.auth_backend.PyMongoJWTAuthentication",
+        "accounts.auth_backend.PyMongoJWTAuthentication",  # custom JWT auth
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
     ],
 }
-
 
 # ==========================
 # JWT
