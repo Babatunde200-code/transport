@@ -1,8 +1,9 @@
 # accounts/models.py
 
-from django.conf import settings
+from travelshare.mongo import get_db
 
-db = settings.db
+db = get_db()
+users_collection = db["users"] 
 
 class UserRepository:
     collection = db["users"]

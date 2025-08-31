@@ -3,7 +3,6 @@ import os
 import environ
 from datetime import timedelta
 import certifi
-from pymongo import MongoClient
 from django.conf import settings as django_settings
 
 # ==========================
@@ -106,8 +105,6 @@ MONGO_URI = env(
     default="mongodb+srv://tunde200james:PeruPara@cluster0.od0rglj.mongodb.net/transport_db?retryWrites=true&w=majority&appName=Cluster0"
 )
 
-client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
-db = client["transport_db"]
 
 # ✅ inject into Django settings registry (for global use)
 setattr(django_settings, "db", db)
