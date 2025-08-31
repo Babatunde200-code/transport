@@ -3,7 +3,6 @@ import os
 import environ
 from datetime import timedelta
 import certifi
-from django.conf import settings as django_settings
 
 # ==========================
 # BASE DIR & ENV
@@ -23,20 +22,20 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "asaptravels.ng",
-    ".asaptravels.ng",   # wildcard for subdomains
+    "www.asaptravels.ng",
     "transport-2-0imo.onrender.com",
-    ".onrender.com",     # covers other Render domains
+    ".onrender.com",  # wildcard for Render domains
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://asaptravels.ng",
-    "https://*.asaptravels.ng",
+    "https://www.asaptravels.ng",
     "https://transport-2-0imo.onrender.com",
     "https://transport-frontend-jet.vercel.app",
 ]
 
 # ==========================
-# APPS
+# CORS
 # ==========================
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -57,14 +56,11 @@ INSTALLED_APPS = [
     "reviews",
 ]
 
-# ==========================
-# MIDDLEWARE
-# ==========================
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
+    "corsheaders.middleware.CorsMiddleware",   # MUST be before CommonMiddleware
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -72,66 +68,30 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "travelshare.urls"
-
-# ==========================
-# TEMPLATES
-# ==========================
-TEMPLATES = [
-    {
-        "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [os.path.join(BASE_DIR, "templates")],
-        "APP_DIRS": True,
-        "OPTIONS": {
-            "context_processors": [
-                "django.template.context_processors.debug",
-                "django.template.context_processors.request",
-                "django.contrib.auth.context_processors.auth",
-                "django.contrib.messages.context_processors.messages",
-            ],
-        },
-    },
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://asaptravels.ng",
+    "https://www.asaptravels.ng",
+    "https://transport-frontend-jet.vercel.app",
 ]
 
-WSGI_APPLICATION = "travelshare.wsgi.application"
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.asaptravels\.ng$",
+]
+
+CORS_ALLOW_CREDENTIALS = True
 
 # ==========================
 # DATABASE (MongoDB Atlas)
 # ==========================
 MONGO_URI = env(
     "MONGO_URI",
-    default="mongodb+srv://tunde200james:PeruPara@cluster0.od0rglj.mongodb.net/transport_db?retryWrites=true&w=majority&appName=Cluster0"
+    default="mongodb+srv://user:password@cluster0.mongodb.net/transport_db?retryWrites=true&w=majority&appName=Cluster0"
 )
 
 # ==========================
-# PASSWORD VALIDATORS
-# ==========================
-AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
-    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
-]
-
-# ==========================
-# INTERNATIONALIZATION
-# ==========================
-LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
-USE_I18N = True
-USE_TZ = True
-
-# ==========================
-# STATIC FILES
-# ==========================
-STATIC_URL = "/static/"
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-# ==========================
-# DRF
+# REST FRAMEWORK
 # ==========================
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -155,16 +115,13 @@ SIMPLE_JWT = {
 }
 
 # ==========================
-# CORS
+# STATIC FILES
 # ==========================
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "https://www.asaptravels.ng",
-    "https://transport-frontend-jet.vercel.app",
-]
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGIN_REGEXES = [r"^https://.*\.asaptravels\.ng$"]
+STATIC_URL = "/static/"
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ==========================
 # EMAIL
