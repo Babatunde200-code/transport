@@ -4,7 +4,6 @@ import environ
 from datetime import timedelta
 import certifi
 
-
 # BASE DIR
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -88,24 +87,26 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "travelshare.wsgi.application"
 
-# DATABASE (MongoDB via djongo)
+# ==========================
+# DATABASE (MongoDB Atlas)
+# ==========================
 DATABASES = {
     "default": {
         "ENGINE": "djongo",
         "NAME": env("MONGO_DB_NAME", default="transport_db"),
-        "ENFORCE_SCHEMA": False,   # helps avoid schema mismatch issues
         "CLIENT": {
-            "host": env("MONGO_DB_URI"),
-            'tls': True,
-            'tlsCAFile': certifi.where(),
-        }
+            "host": env(
+                "MONGO_DB_URI",
+                default="mongodb+srv://tunde200james:PeruPara@cluster0.od0rglj.mongodb.net/transport_db?retryWrites=true&w=majority&appName=Cluster0"
+            ),
+            "tlsCAFile": certifi.where(),
+        },
     }
 }
-# Example .env line:
-# MONGO_DB_URI=mongodb+srv://username:password@cluster0.od0rglj.mongodb.net/travelshare?retryWrites=true&w=majority&appName=Cluster0
-# MONGO_DB_NAME=travelshare
 
+# ==========================
 # PASSWORD VALIDATORS
+# ==========================
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -113,31 +114,38 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
+# ==========================
 # INTERNATIONALIZATION
+# ==========================
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
+# ==========================
 # STATIC FILES
+# ==========================
 STATIC_URL = "/static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# ==========================
 # DRF
+# ==========================
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
-        "rest_framework.permissions.AllowAny",
     ),
 }
 
+# ==========================
 # JWT
+# ==========================
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
@@ -147,7 +155,9 @@ SIMPLE_JWT = {
     "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
 }
 
+# ==========================
 # CORS
+# ==========================
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -157,7 +167,9 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGIN_REGEXES = [r"^https://.*\.asaptravels\.ng$"]
 
+# ==========================
 # EMAIL
+# ==========================
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = env("EMAIL_HOST", default="smtp.gmail.com")
 EMAIL_PORT = env.int("EMAIL_PORT", default=587)
