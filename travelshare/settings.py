@@ -74,8 +74,6 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "travelshare.urls"
 
-AUTH_USER_MODEL = "accounts.CustomUser"
-
 # ==========================
 # TEMPLATES
 # ==========================
