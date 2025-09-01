@@ -83,14 +83,32 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = True
 
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],  # you can leave [] if you don’t have custom templates
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ],
+        },
+    },
+]
+
+
 
 # ==========================
 # DATABASE (MongoDB Atlas)
 # ==========================
 MONGO_URI = env(
     "MONGO_URI",
-    default="mongodb+srv://user:password@cluster0.mongodb.net/transport_db?retryWrites=true&w=majority&appName=Cluster0"
+    default="mongodb+srv://tunde200james:PeruPara@cluster0.od0rglj.mongodb.net/transport_db?retryWrites=true&w=majority&appName=Cluster0"
 )
+MONGO_DB_NAME = "transport_db"
 
 # ==========================
 # REST FRAMEWORK
@@ -115,6 +133,7 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
 }
+ROOT_URLCONF = "travelshare.urls"
 
 # ==========================
 # STATIC FILES

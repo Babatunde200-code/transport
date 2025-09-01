@@ -1,10 +1,11 @@
+# accounts/models.py
 from travelshare.mongo import get_db
 
 db = get_db()
-users_collection = db["users"] 
+users_collection = db["users"]
 
 class UserRepository:
-    collection = db["users"]
+    collection = users_collection
 
     @staticmethod
     def create_user(data):

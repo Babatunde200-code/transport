@@ -5,7 +5,8 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Review
 from .serializers import ReviewSerializer
 from travels.models import TravelPlan
-from accounts.models import CustomUser
+from accounts.models import UserRepository
+
 
 class ReviewListCreateView(APIView):
     permission_classes = [IsAuthenticated]

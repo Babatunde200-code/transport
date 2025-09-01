@@ -2,7 +2,7 @@ import random
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .models import UserRepository
-from .utils import SignupSerializer
+from .serializers import SignupSerializer
 from rest_framework import status, permissions
 from bson.objectid import ObjectId
 from rest_framework.permissions import IsAuthenticated
