@@ -60,7 +60,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "corsheaders.middleware.CorsMiddleware",   # MUST be before CommonMiddleware
+    "corsheaders.middleware.CorsMiddleware",  # MUST be before CommonMiddleware
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -68,6 +68,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+# Explicit allowed origins (better than allow all)
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -81,12 +82,12 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = True
+# ❌ Removed CORS_ALLOW_ALL_ORIGINS because it conflicts with the whitelist
 
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],  # you can leave [] if you don’t have custom templates
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -99,15 +100,10 @@ TEMPLATES = [
     },
 ]
 
-
-
 # ==========================
 # DATABASE (MongoDB Atlas)
 # ==========================
-MONGO_URI = env(
-    "MONGO_URI",
-    default="mongodb+srv://tunde200james:PeruPara@cluster0.od0rglj.mongodb.net/transport_db?retryWrites=true&w=majority&appName=Cluster0"
-)
+MONGO_URI = env("MONGO_URI")
 MONGO_DB_NAME = "transport_db"
 
 # ==========================
@@ -133,6 +129,7 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
 }
+
 ROOT_URLCONF = "travelshare.urls"
 
 # ==========================
