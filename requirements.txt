@@ -14,3 +14,4 @@ sqlparse==0.5.3
 wheel==0.45.1
 whitenoise==6.9.0
 pymongo==4.10.1
+bcrypt==4.1.2 

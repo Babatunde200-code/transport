@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django_extensions",
 
     # Third-party
     "rest_framework",
@@ -121,8 +122,8 @@ TEMPLATES = [
 # ==========================
 # DATABASE (MongoDB Atlas)
 # ==========================
-MONGO_URI = env("MONGO_URI")
-MONGO_DB_NAME = "transport_db"
+MONGO_URI = env("MONGO_URI", default="mongodb://localhost:27017/")
+MONGO_DB_NAME = env("MONGO_DB_NAME", default="transport_db")
 
 # ==========================
 # REST FRAMEWORK
