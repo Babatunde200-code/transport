@@ -24,7 +24,7 @@ ALLOWED_HOSTS = [
     "asaptravels.ng",
     "www.asaptravels.ng",
     "transport-2-0imo.onrender.com",
-    ".onrender.com",  # wildcard for Render domains
+    ".onrender.com",  # wildcard for Render
 ]
 
 CSRF_TRUSTED_ORIGINS = [
@@ -35,7 +35,7 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 # ==========================
-# CORS
+# INSTALLED APPS
 # ==========================
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -56,11 +56,17 @@ INSTALLED_APPS = [
     "reviews",
 ]
 
+# ==========================
+# MIDDLEWARE
+# ==========================
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "corsheaders.middleware.CorsMiddleware",  # MUST be before CommonMiddleware
+
+    # CORS (must be before CommonMiddleware)
+    "corsheaders.middleware.CorsMiddleware",
+
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -68,7 +74,18 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-# Explicit allowed origins (better than allow all)
+# ==========================
+# CORS CONFIGURATION
+# ==========================
+# ---- Debug Mode (everything allowed) ----
+CORS_ALLOW_ALL_ORIGINS = True     # 🚨 WIDE OPEN for debugging
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = ["*"]
+CORS_ALLOW_METHODS = ["*"]
+
+# ---- Production Mode (restrict) ----
+# Uncomment below & remove debug mode when ready for production
+"""
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -80,10 +97,11 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://.*\.asaptravels\.ng$",
 ]
+"""
 
-CORS_ALLOW_CREDENTIALS = True
-# ❌ Removed CORS_ALLOW_ALL_ORIGINS because it conflicts with the whitelist
-
+# ==========================
+# TEMPLATES
+# ==========================
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -142,7 +160,7 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ==========================
-# EMAIL
+# EMAIL (Gmail SMTP default)
 # ==========================
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = env("EMAIL_HOST", default="smtp.gmail.com")
