@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth.hashers import make_password
 from django.core.mail import send_mail
 from django.conf import settings
+from django.contrib.auth.hashers import check_password as dj_check_password
 
 from .serializers import SignupSerializer
 from .repository import UserRepository
@@ -115,15 +116,31 @@ class LoginView(APIView):
         email = request.data.get("email")
         password = request.data.get("password")
 
-        user = users.find_one({"email": email})
-        if not user or not check_password(password, user["password"]):
+        if not email or not password:
+            return Response({"error": "Email and password required"}, status=400)
+
+        # ✅ Get user from repo
+        user = UserRepository.find_by_email(email)
+        if not user:
             return Response({"error": "Invalid credentials"}, status=400)
 
-        if not user.get("is_verified"):
+        # ✅ Check password
+        if not dj_check_password(password, user["password"]):
+            return Response({"error": "Invalid credentials"}, status=400)
+
+        # ✅ Check if verified
+        if not user.get("is_verified", False):
             return Response({"error": "Account not verified"}, status=403)
 
-        token = generate_jwt(user["_id"], user["email"])
-        return Response({"token": token})
+        # ✅ Generate JWT (convert ObjectId to str)
+        token = generate_jwt(str(user["_id"]), user["email"])
+
+        return Response({
+            "message": "Login successful",
+            "token": token,
+            "email": user["email"]
+        })
+
 
 
 # ---------------- Profile ----------------
