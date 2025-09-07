@@ -7,6 +7,8 @@ from rest_framework import status, permissions
 from bson.objectid import ObjectId
 from rest_framework.permissions import IsAuthenticated
 from .auth_utils import users, hash_password, check_password, generate_jwt
+from django.contrib.auth.hashers import make_password
+from .repository import UserRepository
 
 
 class SignupView(APIView):
@@ -16,21 +18,31 @@ class SignupView(APIView):
             return Response(serializer.errors, status=400)
 
         data = serializer.validated_data
-        if UserRepository.find_by_email(data["email"]):
+        email = data["email"]
+        password = data["password"]
+
+        # Check if user exists
+        if UserRepository.find_by_email(email):
             return Response({"error": "Email already exists"}, status=400)
 
+        # Generate verification code
         verification_code = str(random.randint(100000, 999999))
 
+        # Create user
         UserRepository.create_user({
-            "full_name": data["full_name"],
-            "email": data["email"],
-            "phone_number": data["phone_number"],
-            "password": data["password"],  # TODO: hash before saving
+            "email": email,
+            "password": make_password(password),  # ✅ hash password
             "is_verified": False,
-            "verification_code": verification_code
+            "verification_code": verification_code,
         })
 
-        return Response({"message": "Signup successful. Please verify your account."})
+        return Response({
+            "message": "Signup successful. Please verify your account.",
+            "email": email
+        }, status=201)
+
+
+
 
 
 class VerifyAccountView(APIView):
