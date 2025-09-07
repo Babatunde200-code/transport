@@ -19,3 +19,20 @@ class UserRepository:
 
         users_collection.insert_one(clean_data)
         return clean_data
+
+    @staticmethod
+    def verify_user(email: str, code: str):
+        """
+        Marks a user as verified if the email + code match
+        """
+        return users_collection.update_one(
+            {
+                "email": email,
+                "verification_code": code,
+                "is_verified": False,  # only verify if not already verified
+            },
+            {
+                "$set": {"is_verified": True},
+                "$unset": {"verification_code": ""},  # remove code after success
+            }
+        )
