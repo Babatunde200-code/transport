@@ -1,49 +1,205 @@
-from django.db import models
-from django.conf import settings
-from django.utils import timezone
+from bson import ObjectId
+from django.contrib.auth.hashers import make_password, check_password
+from datetime import datetime
+from .db import db
+
+# MongoDB collections
+users = db["users"]
+rides = db["rides"]
+bookings = db["bookings"]
 
 
-class TravelPlan(models.Model):
-    driver = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="travel_plans"
-    )
-    origin = models.CharField(max_length=255)
-    destination = models.CharField(max_length=255)
-    departure_date = models.DateField()
-    departure_time = models.TimeField()
-    available_seats = models.PositiveIntegerField()
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    created_at = models.DateTimeField(auto_now_add=True)
+# ===================== USER =====================
+class User:
+    def __init__(self, email, password=None, is_admin=False, _id=None, created_at=None):
+        self.id = str(_id) if _id else None
+        self.email = email
+        self.password = password
+        self.is_admin = is_admin
+        self.created_at = created_at or datetime.utcnow()
 
-    def __str__(self):
-        return f"{self.origin} → {self.destination} by {self.driver}"
+    def set_password(self, raw_password):
+        self.password = make_password(raw_password)
+
+    def check_password(self, raw_password):
+        return check_password(raw_password, self.password)
+
+    def save(self):
+        doc = {
+            "email": self.email,
+            "password": self.password,
+            "is_admin": self.is_admin,
+            "created_at": self.created_at,
+        }
+        if self.id:
+            users.update_one({"_id": ObjectId(self.id)}, {"$set": doc})
+        else:
+            result = users.insert_one(doc)
+            self.id = str(result.inserted_id)
+        return self
+
+    @staticmethod
+    def find_by_email(email: str):
+        data = users.find_one({"email": email})
+        if not data:
+            return None
+        return User(
+            email=data["email"],
+            password=data["password"],
+            is_admin=data.get("is_admin", False),
+            _id=data["_id"],
+            created_at=data.get("created_at"),
+        )
+
+    @staticmethod
+    def find_by_id(user_id: str):
+        try:
+            data = users.find_one({"_id": ObjectId(user_id)})
+        except Exception:
+            return None
+        if not data:
+            return None
+        return User(
+            email=data["email"],
+            password=data["password"],
+            is_admin=data.get("is_admin", False),
+            _id=data["_id"],
+            created_at=data.get("created_at"),
+        )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "email": self.email,
+            "is_admin": self.is_admin,
+            "created_at": self.created_at,
+        }
 
 
-class Booking(models.Model):
-    passenger = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="travel_bookings",
-        null=True,  # temporarily allow null for migrations
-        blank=True
-    )
-    travel_plan = models.ForeignKey(
-        TravelPlan,
-        on_delete=models.CASCADE,
-        related_name="travel_bookings",
-        null=True,  # temporarily allow null for migrations
-        blank=True
-    )
-    seats_booked = models.PositiveIntegerField(default=1)
-    status = models.CharField(
-        max_length=20,
-        choices=[("pending", "Pending"), ("approved", "Approved"), ("cancelled", "Cancelled")],
-        default="pending"
-    )
-    created_at = models.DateTimeField(default=timezone.now, editable=False)
+# ===================== RIDE =====================
+class Ride:
+    def __init__(self, origin, destination, departure_time, price, available_seats, _id=None):
+        self.id = str(_id) if _id else None
+        self.origin = origin
+        self.destination = destination
+        self.departure_time = departure_time
+        self.price = price
+        self.available_seats = available_seats
 
-    def __str__(self):
-        passenger_str = self.passenger if self.passenger else "Unknown"
-        return f"Booking by {passenger_str} for {self.travel_plan}"
+    def save(self):
+        doc = {
+            "origin": self.origin,
+            "destination": self.destination,
+            "departure_time": self.departure_time,
+            "price": self.price,
+            "available_seats": self.available_seats,
+        }
+        if self.id:
+            rides.update_one({"_id": ObjectId(self.id)}, {"$set": doc})
+        else:
+            result = rides.insert_one(doc)
+            self.id = str(result.inserted_id)
+        return self
+
+    @staticmethod
+    def find_all():
+        return [
+            Ride(
+                origin=r["origin"],
+                destination=r["destination"],
+                departure_time=r["departure_time"],
+                price=r["price"],
+                available_seats=r["available_seats"],
+                _id=r["_id"],
+            )
+            for r in rides.find()
+        ]
+
+    @staticmethod
+    def find_by_id(ride_id):
+        try:
+            r = rides.find_one({"_id": ObjectId(ride_id)})
+        except Exception:
+            return None
+        if not r:
+            return None
+        return Ride(
+            origin=r["origin"],
+            destination=r["destination"],
+            departure_time=r["departure_time"],
+            price=r["price"],
+            available_seats=r["available_seats"],
+            _id=r["_id"],
+        )
+
+
+# ===================== BOOKING =====================
+class Booking:
+    def __init__(self, user_id, ride_id, seat_count, total_price, status="pending", _id=None, created_at=None):
+        self.id = str(_id) if _id else None
+        self.user_id = user_id
+        self.ride_id = ride_id
+        self.seat_count = seat_count
+        self.total_price = total_price
+        self.status = status
+        self.created_at = created_at or datetime.utcnow()
+
+    def save(self):
+        doc = {
+            "user_id": self.user_id,
+            "ride_id": self.ride_id,
+            "seat_count": self.seat_count,
+            "total_price": self.total_price,
+            "status": self.status,
+            "created_at": self.created_at,
+        }
+        if self.id:
+            bookings.update_one({"_id": ObjectId(self.id)}, {"$set": doc})
+        else:
+            result = bookings.insert_one(doc)
+            self.id = str(result.inserted_id)
+        return self
+
+    @staticmethod
+    def find_by_user(user_id):
+        return [
+            Booking(
+                user_id=b["user_id"],
+                ride_id=b["ride_id"],
+                seat_count=b["seat_count"],
+                total_price=b["total_price"],
+                status=b["status"],
+                _id=b["_id"],
+                created_at=b["created_at"],
+            )
+            for b in bookings.find({"user_id": user_id})
+        ]
+
+    @staticmethod
+    def find_by_id(booking_id):
+        try:
+            b = bookings.find_one({"_id": ObjectId(booking_id)})
+        except Exception:
+            return None
+        if not b:
+            return None
+        return Booking(
+            user_id=b["user_id"],
+            ride_id=b["ride_id"],
+            seat_count=b["seat_count"],
+            total_price=b["total_price"],
+            status=b["status"],
+            _id=b["_id"],
+            created_at=b["created_at"],
+        )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "ride_id": self.ride_id,
+            "seat_count": self.seat_count,
+            "total_price": self.total_price,
+            "status": self.status,
+            "created_at": self.created_at,
+        }

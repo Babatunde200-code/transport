@@ -5,6 +5,7 @@ from .views import (
     ResendVerificationView,
     LoginView,
     ProfileView,
+    MakeAdminView,
 )
 
 urlpatterns = [
@@ -13,4 +14,5 @@ urlpatterns = [
     path("resend-code/", ResendVerificationView.as_view(), name="resend_code"),
     path("login/", LoginView.as_view(), name="login"),
     path("profile/", ProfileView.as_view(), name="profile"),
+    path("make-admin/", MakeAdminView.as_view(), name="make-admin"),
 ]

@@ -1,16 +1,26 @@
 from django.urls import path
 from .views import (
-    TravelPlanCreateView,
-    TravelPlanListCreateView,
-   TravelPlanDetailView,
-    BookingListCreateView,
+    AdminSignupView,
+    AdminLoginView,
+    AdminRideView,
+    RideListView,
+    BookRideView,
+    UserBookingsView,
     BookingDetailView,
+    MarkPaidView
 )
 
 urlpatterns = [
-    path("travel-plans/", TravelPlanCreateView.as_view(), name="travel-plans"),
-    path("available-rides/", TravelPlanListCreateView.as_view(), name="available-rides"),
-    path("book-ride/", TravelPlanDetailView.as_view(), name="book-ride"),
-    path("my-bookings/", BookingListCreateView.as_view(), name="my-bookings"),
-    path("cancel-booking/<int:booking_id>/", BookingDetailView.as_view(), name="cancel-booking"),
+    # admin ride management
+    path("admin/signup/", AdminSignupView.as_view(), name="admin-signup"),
+    path("admin/login/", AdminLoginView.as_view(), name="admin-login"),
+    path("admin/rides/", AdminRideView.as_view(), name="admin-ride-create"),
+    path("admin/rides/<str:ride_id>/", AdminRideView.as_view(), name="admin-ride-update-delete"),
+
+    # user rides
+    path("rides/", RideListView.as_view(), name="ride-list"),
+    path("rides/<str:ride_id>/book/", BookRideView.as_view(), name="book-ride"),
+    path("bookings/", UserBookingsView.as_view(), name="user-bookings"),
+    path("bookings/<str:booking_id>/", BookingDetailView.as_view(), name="booking-detail"),  # ✅ new
+    path("bookings/<str:booking_id>/pay/", MarkPaidView.as_view(), name="mark-paid"),
 ]

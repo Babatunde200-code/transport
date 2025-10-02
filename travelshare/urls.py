@@ -26,8 +26,7 @@ urlpatterns = [
 
     # API routes
     path("api/", include("accounts.urls")),
-    path("api/travel/", include("travels.urls")),
-    path("api/reviews/", include("reviews.urls")),
+    path("api/", include("travels.urls")),
 ]
 
 # Serve media files in development

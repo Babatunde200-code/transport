@@ -3,7 +3,6 @@ import jwt
 import datetime
 from django.conf import settings
 from bson.objectid import ObjectId
-
 from pymongo import MongoClient
 
 # connect to MongoDB

@@ -1,22 +1,35 @@
 from pathlib import Path
-import os
-import environ
-from datetime import timedelta
 import certifi
+from pymongo import MongoClient
+import environ
+import os
+from datetime import timedelta
 
-# ==========================
-# BASE DIR & ENV
-# ==========================
+
+# env setup
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Initialise environment variables
 env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
+
+# MongoDB
+MONGO_URI = env("MONGO_URI")
+MONGO_DB_NAME = env("MONGO_DB_NAME")
+
+client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
+db = client[MONGO_DB_NAME]
+
+# Collections
+admins_collection = db["admins"]
+trips_collection = db["trips"]
+bookings_collection = db["bookings"]
 
 # ==========================
 # SECURITY
 # ==========================
 SECRET_KEY = env("SECRET_KEY", default="change-me")
-DEBUG = env.bool("DEBUG", default=False)
+DEBUG = env.bool("DEBUG", default=True)
 
 ALLOWED_HOSTS = [
     "localhost",
@@ -24,15 +37,18 @@ ALLOWED_HOSTS = [
     "asaptravels.ng",
     "www.asaptravels.ng",
     "transport-2-0imo.onrender.com",
-    ".onrender.com",  # wildcard for Render
+    ".onrender.com",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
     "https://asaptravels.ng",
     "https://www.asaptravels.ng",
     "https://transport-2-0imo.onrender.com",
     "https://transport-frontend-jet.vercel.app",
 ]
+
 
 # ==========================
 # INSTALLED APPS
@@ -54,7 +70,6 @@ INSTALLED_APPS = [
     # Local apps
     "accounts",
     "travels",
-    "reviews",
 ]
 
 # ==========================
@@ -65,7 +80,7 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
 
-    # CORS (must be before CommonMiddleware)
+    # CORS
     "corsheaders.middleware.CorsMiddleware",
 
     "django.middleware.common.CommonMiddleware",
@@ -73,19 +88,18 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "middleware.csrf_disable.DisableCSRFMiddleware",
 ]
 
 # ==========================
-# CORS CONFIGURATION
+# CORS CONFIG
 # ==========================
 if DEBUG:
-    # ---- Debug Mode (everything allowed) ----
     CORS_ALLOW_ALL_ORIGINS = True
     CORS_ALLOW_CREDENTIALS = True
     CORS_ALLOW_HEADERS = ["*"]
     CORS_ALLOW_METHODS = ["*"]
 else:
-    # ---- Production Mode (restricted) ----
     CORS_ALLOWED_ORIGINS = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
@@ -119,20 +133,19 @@ TEMPLATES = [
 ROOT_URLCONF = "travelshare.urls"
 
 # ==========================
-# DATABASE (MongoDB Atlas)
-# ==========================
-MONGO_URI = env("MONGO_URI", default="mongodb://localhost:27017/")
-MONGO_DB_NAME = env("MONGO_DB_NAME", default="transport_db")
-
-# ==========================
 # REST FRAMEWORK
 # ==========================
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "accounts.auth_backend.PyMongoJWTAuthentication",  # custom JWT auth
+        "accounts.auth_backend.PyMongoJWTAuthentication",
+        "travels.auth.PyMongoJWTAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
+        "rest_framework.permissions.IsAuthenticated",
     ],
 }
 
@@ -158,7 +171,7 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ==========================
-# EMAIL (SMTP)
+# EMAIL (Optional)
 # ==========================
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = env("EMAIL_HOST", default="smtp.gmail.com")
