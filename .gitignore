@@ -4,3 +4,4 @@ __pycache__/
 
 # Django migrations (since we're moving to PyMongo)
 */migrations/
+node_modules/
