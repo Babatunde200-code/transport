@@ -1,4 +1,5 @@
 from django.urls import path
+from . import views
 from .views import (
     AdminSignupView,
     AdminLoginView,
@@ -23,4 +24,5 @@ urlpatterns = [
     path("bookings/", UserBookingsView.as_view(), name="user-bookings"),
     path("bookings/<str:booking_id>/", BookingDetailView.as_view(), name="booking-detail"),  # ✅ new
     path("bookings/<str:booking_id>/pay/", MarkPaidView.as_view(), name="mark-paid"),
+    path("verify-payment/", views.verify_payment, name="verify-payment"),
 ]

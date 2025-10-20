@@ -8,11 +8,14 @@ from rest_framework import status
 from bson.objectid import ObjectId
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from django.contrib.auth.hashers import check_password as dj_check_password, make_password
-
 from .db import admins_collection, trips_collection, bookings_collection
 from .repositories import AdminRepository
 from .utils import generate_jwt
 from .serializers import BookingSerializer
+
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .utils import send_telegram_alert
 
 SECRET_KEY = settings.SECRET_KEY
 
@@ -239,3 +242,29 @@ class MarkPaidView(APIView):
         if result.matched_count == 0:
             return Response({"error": "Booking not found"}, status=404)
         return Response({"message": "Payment confirmed", "status": "paid"})
+
+
+
+@api_view(["POST"])
+def verify_payment(request):
+    data = request.data
+    transaction_id = data.get("transaction_id")
+    booking_id = data.get("booking_id")
+    amount = data.get("amount")
+    name = data.get("name")
+    email = data.get("email")
+
+    # (Optional) You can call Flutterwave verify endpoint here for extra security
+
+    # Send Telegram alert
+    message = f"""
+💳 <b>New Payment Received!</b>
+👤 <b>Name:</b> {name}
+📧 <b>Email:</b> {email}
+📦 <b>Booking ID:</b> {booking_id}
+💰 <b>Amount:</b> ₦{amount}
+🧾 <b>Transaction ID:</b> {transaction_id}
+    """
+    send_telegram_alert(message)
+
+    return Response({"message": "Payment verified and alert sent."}, status=200)
