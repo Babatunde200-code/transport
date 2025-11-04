@@ -254,9 +254,6 @@ def verify_payment(request):
     name = data.get("name")
     email = data.get("email")
 
-    # (Optional) You can call Flutterwave verify endpoint here for extra security
-
-    # Send Telegram alert
     message = f"""
 💳 <b>New Payment Received!</b>
 👤 <b>Name:</b> {name}
