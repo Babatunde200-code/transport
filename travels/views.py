@@ -143,6 +143,7 @@ class BookRideView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, ride_id):
+        # Extract token
         token = request.headers.get("Authorization", "").replace("Bearer ", "")
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
@@ -154,34 +155,55 @@ class BookRideView(APIView):
         user_id = payload.get("user_id")
         email = payload.get("email")
 
-        seat_count = int(request.data.get("seat_count", 1))
+        # NEW: Expect seat_number, not seat_count
+        seat_number = request.data.get("seat_number")
+        if not seat_number:
+            return Response({"error": "Seat number is required"}, status=400)
 
+        seat_number = int(seat_number)
+
+        # Get ride
         ride = trips_collection.find_one({"_id": ObjectId(ride_id)})
         if not ride:
             return Response({"error": "Ride not found"}, status=404)
 
-        available_seats = ride.get("available_seats", 0)
-        if available_seats < seat_count:
-            return Response({"error": f"Only {available_seats} seat(s) left"}, status=400)
+        total_seats = ride.get("total_seats", 0)
+        booked_seats = ride.get("booked_seats", [])
 
+        # Validate that seat exists
+        if seat_number < 1 or seat_number > total_seats:
+            return Response({"error": "Invalid seat number"}, status=400)
+
+        # Prevent double booking
+        if seat_number in booked_seats:
+            return Response({"error": f"Seat {seat_number} is already booked"}, status=400)
+
+        # Create booking object
         booking = {
             "ride_id": str(ride["_id"]),
             "user_id": user_id,
             "email": email,
-            "seat_count": seat_count,
-            "total_price": seat_count * int(ride["price"]),
+            "seat_number": seat_number,
+            "price": int(ride["price"]),
             "status": "pending",
             "created_at": datetime.utcnow()
         }
+
+        # Insert into DB
         result = bookings_collection.insert_one(booking)
         booking["_id"] = str(result.inserted_id)
 
+        # Update booked seats and available seats
         trips_collection.update_one(
             {"_id": ride["_id"]},
-            {"$inc": {"available_seats": -seat_count}}
+            {
+                "$push": {"booked_seats": seat_number},
+                "$inc": {"available_seats": -1}
+            }
         )
 
         return Response(booking, status=201)
+
 
 
 class UserBookingsView(APIView):
