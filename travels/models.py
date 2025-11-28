@@ -78,13 +78,27 @@ class User:
 
 # ===================== RIDE =====================
 class Ride:
-    def __init__(self, origin, destination, departure_time, price, available_seats, _id=None):
+    def __init__(
+        self,
+        origin,
+        destination,
+        departure_time,
+        price,
+        available_seats,
+        total_seats=None,
+        booked_seats=None,
+        _id=None
+    ):
         self.id = str(_id) if _id else None
         self.origin = origin
         self.destination = destination
         self.departure_time = departure_time
         self.price = price
         self.available_seats = available_seats
+
+        # New fields
+        self.total_seats = total_seats or available_seats
+        self.booked_seats = booked_seats or []
 
     def save(self):
         doc = {
@@ -93,12 +107,18 @@ class Ride:
             "departure_time": self.departure_time,
             "price": self.price,
             "available_seats": self.available_seats,
+
+            # ✔ MUST BE INCLUDED
+            "total_seats": self.total_seats,
+            "booked_seats": self.booked_seats,
         }
+
         if self.id:
             rides.update_one({"_id": ObjectId(self.id)}, {"$set": doc})
         else:
             result = rides.insert_one(doc)
             self.id = str(result.inserted_id)
+
         return self
 
     @staticmethod
@@ -110,6 +130,8 @@ class Ride:
                 departure_time=r["departure_time"],
                 price=r["price"],
                 available_seats=r["available_seats"],
+                total_seats=r.get("total_seats", r["available_seats"]),
+                booked_seats=r.get("booked_seats", []),
                 _id=r["_id"],
             )
             for r in rides.find()
@@ -129,6 +151,8 @@ class Ride:
             departure_time=r["departure_time"],
             price=r["price"],
             available_seats=r["available_seats"],
+            total_seats=r.get("total_seats", r["available_seats"]),
+            booked_seats=r.get("booked_seats", []),
             _id=r["_id"],
         )
 
