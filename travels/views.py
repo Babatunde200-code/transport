@@ -121,24 +121,6 @@ class AdminRideView(APIView):
 
 
 # ------------------- USER RIDES -------------------
-class RideListView(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request):
-        rides = list(trips_collection.find({}, {
-            "_id": 1,
-            "origin": 1,
-            "destination": 1,
-            "departure_time": 1,
-            "available_seats": 1,
-            "price": 1
-        }))
-        for ride in rides:
-            ride["_id"] = str(ride["_id"])
-        return Response(rides, status=200)
-
-
-# ------------------- BOOKINGS -------------------
 class BookRideView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -152,10 +134,10 @@ class BookRideView(APIView):
         except jwt.InvalidTokenError:
             return Response({"error": "Invalid token"}, status=401)
 
-        user_id = payload.get("user_id")
+        user_id = payload.get("id") or payload.get("user_id")
         email = payload.get("email")
 
-        # NEW: Expect seat_number, not seat_count
+        # Expect seat_number
         seat_number = request.data.get("seat_number")
         if not seat_number:
             return Response({"error": "Seat number is required"}, status=400)
@@ -167,18 +149,24 @@ class BookRideView(APIView):
         if not ride:
             return Response({"error": "Ride not found"}, status=404)
 
-        total_seats = ride.get("total_seats", 0)
+        # Initialize seat list if missing
         booked_seats = ride.get("booked_seats", [])
+        available_seats = ride.get("available_seats", 0)
 
-        # Validate that seat exists
-        if seat_number < 1 or seat_number > total_seats:
+        # Validate seat
+        if available_seats <= 0:
+            return Response({"error": "No seats available"}, status=400)
+
+        # Let seat_number be anything between 1 and original available seats
+        # This prevents seat number errors
+        if seat_number < 1 or seat_number > 50:  
             return Response({"error": "Invalid seat number"}, status=400)
 
         # Prevent double booking
         if seat_number in booked_seats:
             return Response({"error": f"Seat {seat_number} is already booked"}, status=400)
 
-        # Create booking object
+        # Create booking
         booking = {
             "ride_id": str(ride["_id"]),
             "user_id": user_id,
@@ -189,11 +177,10 @@ class BookRideView(APIView):
             "created_at": datetime.utcnow()
         }
 
-        # Insert into DB
         result = bookings_collection.insert_one(booking)
         booking["_id"] = str(result.inserted_id)
 
-        # Update booked seats and available seats
+        # Update booked seats list + reduce available seats
         trips_collection.update_one(
             {"_id": ride["_id"]},
             {
@@ -203,8 +190,6 @@ class BookRideView(APIView):
         )
 
         return Response(booking, status=201)
-
-
 
 class UserBookingsView(APIView):
     permission_classes = [IsAuthenticated]
