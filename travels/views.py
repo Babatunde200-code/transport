@@ -199,8 +199,9 @@ class BookRideView(APIView):
         }
 
         result = bookings_collection.insert_one(booking)
-        booking["_id"] = str(result.inserted_id)
+        booking_id = str(result.inserted_id)
 
+        # Update seat availability
         trips_collection.update_one(
             {"_id": ride["_id"]},
             {
@@ -209,7 +210,20 @@ class BookRideView(APIView):
             }
         )
 
-        return Response(booking, status=201)
+        # RETURN FULL BOOKING DETAILS
+        return Response({
+            "booking_id": booking_id,
+            "seat_number": seat_number,
+            "total_price": int(ride["price"]),
+            "status": "pending",
+            "ride": {
+                "origin": ride.get("origin"),
+                "destination": ride.get("destination"),
+                "departure_time": ride.get("departure_time"),
+                "price": ride.get("price")
+            }
+        }, status=201)
+
 
 
 class UserBookingsView(APIView):
