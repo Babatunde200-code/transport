@@ -4,7 +4,6 @@ from .views import (
     AdminSignupView,
     AdminLoginView,
     AdminRideView,
-    RideListView,
     BookRideView,
     UserBookingsView,
     BookingDetailView,
@@ -19,7 +18,6 @@ urlpatterns = [
     path("admin/rides/<str:ride_id>/", AdminRideView.as_view(), name="admin-ride-update-delete"),
 
     # user rides
-    path("rides/", RideListView.as_view(), name="ride-list"),
     path("rides/<str:ride_id>/book/", BookRideView.as_view(), name="book-ride"),
     path("bookings/", UserBookingsView.as_view(), name="user-bookings"),
     path("bookings/<str:booking_id>/", BookingDetailView.as_view(), name="booking-detail"),  # ✅ new
