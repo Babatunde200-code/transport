@@ -14,7 +14,6 @@ from .utils import generate_jwt
 from .serializers import BookingSerializer
 
 from rest_framework.decorators import api_view
-from rest_framework.response import Response
 from .utils import send_telegram_alert
 
 SECRET_KEY = settings.SECRET_KEY
@@ -80,37 +79,48 @@ class AdminRideView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
 
     def post(self, request):
-        """Admin creates ride"""
         data = request.data
+        total_seats = int(data.get("total_seats", 0))
+
         ride = {
             "origin": data.get("origin"),
             "destination": data.get("destination"),
             "departure_time": data.get("departure_time"),
-            "available_seats": int(data.get("available_seats", 0)),
+            "total_seats": total_seats,
+            "available_seats": total_seats,
+            "booked_seats": [],
             "price": int(data.get("price", 0)),
             "created_at": datetime.utcnow()
         }
+
         result = trips_collection.insert_one(ride)
         ride["_id"] = str(result.inserted_id)
         return Response(ride, status=201)
 
     def put(self, request, ride_id):
-        """Admin updates ride"""
         data = request.data
+
+        ride = trips_collection.find_one({"_id": ObjectId(ride_id)})
+        if not ride:
+            return Response({"error": "Ride not found"}, status=404)
+
+        total_seats = int(data.get("total_seats", ride["total_seats"]))
+
         update_data = {
-            "origin": data.get("origin"),
-            "destination": data.get("destination"),
-            "departure_time": data.get("departure_time"),
-            "available_seats": int(data.get("available_seats", 0)),
-            "price": int(data.get("price", 0)),
+            "origin": data.get("origin", ride["origin"]),
+            "destination": data.get("destination", ride["destination"]),
+            "departure_time": data.get("departure_time", ride["departure_time"]),
+            "total_seats": total_seats,
+            "available_seats": total_seats - len(ride.get("booked_seats", [])),
+            "price": int(data.get("price", ride["price"])),
             "updated_at": datetime.utcnow()
         }
-        result = trips_collection.update_one(
+
+        trips_collection.update_one(
             {"_id": ObjectId(ride_id)},
             {"$set": update_data}
         )
-        if result.matched_count == 0:
-            return Response({"error": "Ride not found"}, status=404)
+
         return Response({"message": "Ride updated"}, status=200)
 
     def delete(self, request, ride_id):
@@ -143,7 +153,6 @@ class BookRideView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, ride_id):
-        # Extract token
         token = request.headers.get("Authorization", "").replace("Bearer ", "")
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
@@ -155,30 +164,25 @@ class BookRideView(APIView):
         user_id = payload.get("user_id")
         email = payload.get("email")
 
-        # NEW: Expect seat_number, not seat_count
         seat_number = request.data.get("seat_number")
         if not seat_number:
             return Response({"error": "Seat number is required"}, status=400)
 
         seat_number = int(seat_number)
 
-        # Get ride
         ride = trips_collection.find_one({"_id": ObjectId(ride_id)})
         if not ride:
             return Response({"error": "Ride not found"}, status=404)
 
-        total_seats = ride.get("total_seats", 0)
+        total_seats = ride.get("total_seats")
         booked_seats = ride.get("booked_seats", [])
 
-        # Validate that seat exists
         if seat_number < 1 or seat_number > total_seats:
             return Response({"error": "Invalid seat number"}, status=400)
 
-        # Prevent double booking
         if seat_number in booked_seats:
             return Response({"error": f"Seat {seat_number} is already booked"}, status=400)
 
-        # Create booking object
         booking = {
             "ride_id": str(ride["_id"]),
             "user_id": user_id,
@@ -189,11 +193,9 @@ class BookRideView(APIView):
             "created_at": datetime.utcnow()
         }
 
-        # Insert into DB
         result = bookings_collection.insert_one(booking)
         booking["_id"] = str(result.inserted_id)
 
-        # Update booked seats and available seats
         trips_collection.update_one(
             {"_id": ride["_id"]},
             {
@@ -203,7 +205,6 @@ class BookRideView(APIView):
         )
 
         return Response(booking, status=201)
-
 
 
 class UserBookingsView(APIView):
@@ -221,7 +222,8 @@ class UserBookingsView(APIView):
         for b in bookings:
             b["_id"] = str(b["_id"])
         return Response(bookings, status=200)
-    
+
+
 class BookingDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -264,7 +266,6 @@ class MarkPaidView(APIView):
         if result.matched_count == 0:
             return Response({"error": "Booking not found"}, status=404)
         return Response({"message": "Payment confirmed", "status": "paid"})
-
 
 
 @api_view(["POST"])
