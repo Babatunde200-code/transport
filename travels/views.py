@@ -140,11 +140,16 @@ class RideListView(APIView):
             "origin": 1,
             "destination": 1,
             "departure_time": 1,
+            "total_seats": 1,
             "available_seats": 1,
+            "booked_seats": 1,   # <--- IMPORTANT
             "price": 1
         }))
+
         for ride in rides:
             ride["_id"] = str(ride["_id"])
+            ride["booked_seats"] = ride.get("booked_seats", [])
+
         return Response(rides, status=200)
 
 
