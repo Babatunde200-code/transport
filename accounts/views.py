@@ -2,23 +2,22 @@ import random
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
-from rest_framework.permissions import AllowAny,IsAuthenticated, IsAdminUser
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from django.contrib.auth.hashers import make_password
 from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib.auth.hashers import check_password as dj_check_password
 from bson import ObjectId
+
 from .repository import UserRepository
-from .utils import generate_jwt 
+from .utils import generate_jwt
 from .serializers import SignupSerializer
-from .repository import UserRepository
-from travels.utils import generate_jwt
-from travels.repositories import AdminRepository   # ✅ now this works
-from rest_framework.permissions import IsAdminUser
+from travels.repositories import AdminRepository
+
 
 # ---------------- Signup ----------------
 class SignupView(APIView):
-    permission_classes = [AllowAny]  # ✅ anyone can sign up
+    permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = SignupSerializer(data=request.data)
@@ -52,15 +51,18 @@ class SignupView(APIView):
         except Exception as e:
             return Response({"error": f"Failed to send email: {str(e)}"}, status=500)
 
-        return Response({
-            "message": "Signup successful. Please check your email for the verification code.",
-            "email": email
-        }, status=201)
+        return Response(
+            {
+                "message": "Signup successful. Please check your email for the verification code.",
+                "email": email
+            },
+            status=201,
+        )
 
 
 # ---------------- Verify Account ----------------
 class VerifyAccountView(APIView):
-    permission_classes = [AllowAny]  # ✅ user not logged in yet
+    permission_classes = [AllowAny]
 
     def post(self, request):
         email = request.data.get("email")
@@ -78,7 +80,7 @@ class VerifyAccountView(APIView):
 
 # ---------------- Resend Verification ----------------
 class ResendVerificationView(APIView):
-    permission_classes = [AllowAny]  # ✅ also public
+    permission_classes = [AllowAny]
 
     def post(self, request):
         email = request.data.get("email")
@@ -110,7 +112,6 @@ class ResendVerificationView(APIView):
 
 
 # ---------------- Login ----------------
-
 class LoginView(APIView):
     permission_classes = [AllowAny]
 
@@ -121,33 +122,32 @@ class LoginView(APIView):
         if not email or not password:
             return Response({"error": "Email and password required"}, status=400)
 
-        # 🔍 Look up user by email
         user = UserRepository.find_by_email(email)
         if not user:
             return Response({"error": "Invalid credentials"}, status=400)
 
         stored_password = user["password"]
 
-        # ✅ Check password
+        # Check password
         if dj_check_password(password, stored_password):
-            pass  # correct password
-        elif password == stored_password:  # fallback for old plain-text
+            pass
+        elif password == stored_password:  # fallback old plain text
             UserRepository.update_password(user["_id"], make_password(password))
         else:
             return Response({"error": "Invalid credentials"}, status=400)
 
-        # 🚨 Block login if not verified
+        # Check verification
         if not user.get("is_verified", False):
             return Response({"error": "Account not verified"}, status=403)
 
-        # 👮 Detect admin role
+        # Admin role
         is_admin = user.get("is_admin", False)
 
-        # 🎫 Issue JWT
+        # Generate JWT
         token = generate_jwt(
             str(user["_id"]),
             user["email"],
-            is_admin=is_admin
+            is_admin=is_admin,
         )
 
         return Response(
@@ -159,20 +159,86 @@ class LoginView(APIView):
             },
             status=200,
         )
-class MakeAdminView(APIView):
-    permission_classes = [IsAdminUser]  # ✅ only admins can promote others
+
+
+# ---------------- Forgot Password ----------------
+class ForgotPasswordView(APIView):
+    permission_classes = [AllowAny]
 
     def post(self, request):
         email = request.data.get("email")
+
         if not email:
             return Response({"error": "Email is required"}, status=400)
 
-        # Find user
         user = UserRepository.find_by_email(email)
         if not user:
             return Response({"error": "User not found"}, status=404)
 
-        # Update user to admin
+        reset_code = str(random.randint(100000, 999999))
+
+        UserRepository.update_user(email, {"$set": {"reset_code": reset_code}})
+
+        try:
+            send_mail(
+                subject="Password Reset Code",
+                message=f"Your password reset code is {reset_code}",
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            return Response({"error": f"Email sending failed: {str(e)}"}, status=500)
+
+        return Response({"message": "Password reset code sent to your email"}, status=200)
+
+
+# ---------------- Reset Password ----------------
+class ResetPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get("email")
+        code = request.data.get("code")
+        new_password = request.data.get("new_password")
+
+        if not email or not code or not new_password:
+            return Response({"error": "Email, code, and new password are required"}, status=400)
+
+        user = UserRepository.find_by_email(email)
+        if not user:
+            return Response({"error": "User not found"}, status=404)
+
+        if user.get("reset_code") != code:
+            return Response({"error": "Invalid reset code"}, status=400)
+
+        hashed_password = make_password(new_password)
+
+        UserRepository.update_user(
+            email,
+            {
+                "$set": {"password": hashed_password},
+                "$unset": {"reset_code": ""},  # remove used code
+            },
+        )
+
+        return Response({"message": "Password reset successful"}, status=200)
+
+
+# ---------------- Make Admin ----------------
+class MakeAdminView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        email = request.data.get("email")
+
+        if not email:
+            return Response({"error": "Email is required"}, status=400)
+
+        user = UserRepository.find_by_email(email)
+        if not user:
+            return Response({"error": "User not found"}, status=404)
+
         UserRepository.update_user(email, {"$set": {"is_admin": True}})
 
         return Response({"message": f"{email} promoted to admin"}, status=200)
@@ -183,7 +249,9 @@ class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response({
-            "message": "This is a protected route",
-            "user": request.user  # user comes from JWT payload
-        })
+        return Response(
+            {
+                "message": "This is a protected route",
+                "user": request.user,
+            }
+        )
