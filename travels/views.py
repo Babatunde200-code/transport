@@ -12,6 +12,7 @@ from rest_framework.decorators import api_view
 from .db import admins_collection, trips_collection, bookings_collection
 from .repositories import AdminRepository
 from .utils import generate_jwt, send_telegram_alert
+from .db import payments_collection
 
 SECRET_KEY = settings.SECRET_KEY
 
@@ -330,17 +331,119 @@ class MarkPaidView(APIView):
             return Response({"error": "Booking not found"}, status=404)
         return Response({"message": "Payment confirmed", "status": "paid"}, status=200)
 
+# ===================== DASHBOARD: USER BOOKINGS =====================
+class DashboardBookingsView(APIView):
+    permission_classes = [IsAuthenticated]
 
-# ------------------- PAYMENT WEBHOOK / VERIFICATION -------------------
+    def get(self, request):
+        """Return bookings with ride summary (Dashboard)"""
+        token = request.headers.get("Authorization", "").replace("Bearer ", "")
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        except jwt.InvalidTokenError:
+            return Response({"error": "Unauthorized"}, status=401)
+
+        user_id = payload.get("user_id")
+
+        bookings = list(bookings_collection.find({"user_id": user_id}))
+        output = []
+
+        for b in bookings:
+            ride_doc = trips_collection.find_one({"_id": ObjectId(b["ride_id"])})
+            ride = {
+                "from": ride_doc.get("origin"),
+                "to": ride_doc.get("destination"),
+                "date": ride_doc.get("departure_time"),
+                "price": ride_doc.get("price")
+            } if ride_doc else None
+
+            output.append({
+                "booking_id": str(b["_id"]),
+                "seat_number": b.get("seat_number"),
+                "amount": b.get("price"),
+                "payment_status": b.get("status"),
+                "ride": ride
+            })
+
+        return Response(output, status=200)
+
+
+
+# ===================== DASHBOARD: USER PAYMENTS =====================
+class DashboardPaymentsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Return list of payments for dashboard"""
+        token = request.headers.get("Authorization", "").replace("Bearer ", "")
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        except jwt.InvalidTokenError:
+            return Response({"error": "Unauthorized"}, status=401)
+
+        user_id = payload.get("user_id")
+        payments = list(payments_collection.find({"user_id": user_id}))
+
+        for p in payments:
+            p["_id"] = str(p["_id"])
+            p["booking_id"] = str(p.get("booking_id", ""))
+
+        return Response(payments, status=200)
+
+
+
+# ===================== DASHBOARD: PENDING PAYMENTS =====================
+class DashboardPendingPaymentsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Return pending payments only"""
+        token = request.headers.get("Authorization", "").replace("Bearer ", "")
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        except jwt.InvalidTokenError:
+            return Response({"error": "Unauthorized"}, status=401)
+
+        user_id = payload.get("user_id")
+        payments = list(payments_collection.find({"user_id": user_id, "status": "pending"}))
+
+        for p in payments:
+            p["_id"] = str(p["_id"])
+            p["booking_id"] = str(p.get("booking_id", ""))
+
+        return Response(payments, status=200)
+
 @api_view(["POST"])
 def verify_payment(request):
     data = request.data
+
     transaction_id = data.get("transaction_id")
     booking_id = data.get("booking_id")
     amount = data.get("amount")
     name = data.get("name")
     email = data.get("email")
+    user_id = data.get("user_id")
 
+    if not booking_id:
+        return Response({"error": "booking_id is required"}, status=400)
+
+    # 1️⃣ Save payment to database
+    payments_collection.insert_one({
+        "user_id": user_id,
+        "booking_id": booking_id,
+        "amount": amount,
+        "status": "paid",
+        "transaction_id": transaction_id,
+        "created_at": datetime.utcnow()
+    })
+
+    # 2️⃣ Mark booking as paid
+    bookings_collection.update_one(
+        {"_id": ObjectId(booking_id)},
+        {"$set": {"status": "paid"}}
+    )
+
+    # 3️⃣ Send Telegram alert
     message = f"""
 💳 <b>New Payment Received!</b>
 👤 <b>Name:</b> {name}
@@ -350,4 +453,5 @@ def verify_payment(request):
 🧾 <b>Transaction ID:</b> {transaction_id}
     """
     send_telegram_alert(message)
-    return Response({"message": "Payment verified and alert sent."}, status=200)
+
+    return Response({"message": "Payment stored & verified."}, status=200)

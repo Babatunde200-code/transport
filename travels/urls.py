@@ -8,7 +8,10 @@ from .views import (
     BookRideView,
     UserBookingsView,
     BookingDetailView,
-    MarkPaidView
+    MarkPaidView,
+    DashboardBookingsView,
+    DashboardPaymentsView,
+    DashboardPendingPaymentsView
 )
 
 urlpatterns = [
@@ -25,4 +28,7 @@ urlpatterns = [
     path("bookings/<str:booking_id>/", BookingDetailView.as_view(), name="booking-detail"),  # ✅ new
     path("bookings/<str:booking_id>/pay/", MarkPaidView.as_view(), name="mark-paid"),
     path("verify-payment/", views.verify_payment, name="verify-payment"),
+    path("bookings", DashboardBookingsView.as_view()),
+    path("payments", DashboardPaymentsView.as_view()),
+    path("payments/pending", DashboardPendingPaymentsView.as_view()),
 ]

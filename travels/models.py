@@ -227,3 +227,68 @@ class Booking:
             "status": self.status,
             "created_at": self.created_at,
         }
+
+# ===================== PAYMENT =====================
+payments = db["payments"]
+
+class Payment:
+    def __init__(self, user_id, booking_id, amount, status="pending", created_at=None, _id=None):
+        self.id = str(_id) if _id else None
+        self.user_id = user_id
+        self.booking_id = booking_id
+        self.amount = amount
+        self.status = status  # paid | pending
+        self.created_at = created_at or datetime.utcnow()
+
+    def save(self):
+        doc = {
+            "user_id": self.user_id,
+            "booking_id": self.booking_id,
+            "amount": self.amount,
+            "status": self.status,
+            "created_at": self.created_at,
+        }
+        if self.id:
+            payments.update_one({"_id": ObjectId(self.id)}, {"$set": doc})
+        else:
+            result = payments.insert_one(doc)
+            self.id = str(result.inserted_id)
+        return self
+
+    @staticmethod
+    def find_by_user(user_id):
+        return [
+            Payment(
+                user_id=p["user_id"],
+                booking_id=p["booking_id"],
+                amount=p["amount"],
+                status=p["status"],
+                created_at=p["created_at"],
+                _id=p["_id"]
+            )
+            for p in payments.find({"user_id": user_id})
+        ]
+
+    @staticmethod
+    def find_pending(user_id):
+        return [
+            Payment(
+                user_id=p["user_id"],
+                booking_id=p["booking_id"],
+                amount=p["amount"],
+                status=p["status"],
+                created_at=p["created_at"],
+                _id=p["_id"]
+            )
+            for p in payments.find({"user_id": user_id, "status": "pending"})
+        ]
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "booking_id": self.booking_id,
+            "amount": self.amount,
+            "status": self.status,
+            "created_at": self.created_at,
+        }

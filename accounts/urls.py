@@ -17,8 +17,6 @@ urlpatterns = [
     path("login/", LoginView.as_view(), name="login"),
     path("profile/", ProfileView.as_view(), name="profile"),
     path("make-admin/", MakeAdminView.as_view(), name="make-admin"),
-
-    # 👉 Add these
     path("forgot-password/", ForgotPasswordView.as_view(), name="forgot-password"),
     path("reset-password/", ResetPasswordView.as_view(), name="reset-password"),
 ]
