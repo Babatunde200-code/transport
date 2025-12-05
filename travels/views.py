@@ -9,12 +9,28 @@ from bson.objectid import ObjectId
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from django.contrib.auth.hashers import check_password as dj_check_password, make_password
 from rest_framework.decorators import api_view
-from .db import admins_collection, trips_collection, bookings_collection
+from .db import admins_collection, trips_collection, bookings_collection, payments_collection
 from .repositories import AdminRepository
 from .utils import generate_jwt, send_telegram_alert
-from .db import payments_collection
 
 SECRET_KEY = settings.SECRET_KEY
+
+
+# ---------------- Helper ----------------
+def _safe_object_id(val):
+    """
+    If val looks like an ObjectId string, return ObjectId(val).
+    If it's already an ObjectId, return it.
+    Otherwise return the original value (likely a string).
+    """
+    if val is None:
+        return None
+    if isinstance(val, ObjectId):
+        return val
+    try:
+        return ObjectId(val)
+    except Exception:
+        return val
 
 
 # ------------------- ADMIN AUTH -------------------
@@ -99,26 +115,29 @@ class AdminRideView(APIView):
         """Update existing ride (admin). Preserves booked_seats."""
         data = request.data
 
-        ride = trips_collection.find_one({"_id": ObjectId(ride_id)})
-        if not ride:
+        try:
+            ride_doc = trips_collection.find_one({"_id": ObjectId(ride_id)})
+        except Exception:
+            ride_doc = None
+
+        if not ride_doc:
             return Response({"error": "Ride not found"}, status=404)
 
         try:
-            total_seats = int(data.get("total_seats", ride.get("total_seats", 0)))
+            total_seats = int(data.get("total_seats", ride_doc.get("total_seats", 0)))
         except (TypeError, ValueError):
-            total_seats = ride.get("total_seats", 0)
+            total_seats = ride_doc.get("total_seats", 0)
 
-        booked = ride.get("booked_seats", [])
-        # Recalculate available seats: ensure non-negative
+        booked = ride_doc.get("booked_seats", [])
         available = max(total_seats - len(booked), 0)
 
         update_data = {
-            "origin": data.get("origin", ride.get("origin")),
-            "destination": data.get("destination", ride.get("destination")),
-            "departure_time": data.get("departure_time", ride.get("departure_time")),
+            "origin": data.get("origin", ride_doc.get("origin")),
+            "destination": data.get("destination", ride_doc.get("destination")),
+            "departure_time": data.get("departure_time", ride_doc.get("departure_time")),
             "total_seats": total_seats,
             "available_seats": available,
-            "price": int(data.get("price", ride.get("price", 0))),
+            "price": int(data.get("price", ride_doc.get("price", 0))),
             "updated_at": datetime.utcnow()
         }
 
@@ -126,8 +145,12 @@ class AdminRideView(APIView):
         return Response({"message": "Ride updated"}, status=200)
 
     def delete(self, request, ride_id):
-        result = trips_collection.delete_one({"_id": ObjectId(ride_id)})
-        if result.deleted_count == 0:
+        try:
+            result = trips_collection.delete_one({"_id": ObjectId(ride_id)})
+        except Exception:
+            result = None
+
+        if not result or result.deleted_count == 0:
             return Response({"error": "Ride not found"}, status=404)
         return Response({"message": "Ride deleted"}, status=200)
 
@@ -181,13 +204,17 @@ class BookRideView(APIView):
         except (TypeError, ValueError):
             return Response({"error": "Seat number must be an integer"}, status=400)
 
-        # Load ride
-        ride = trips_collection.find_one({"_id": ObjectId(ride_id)})
-        if not ride:
+        # Load ride (handle ride_id that might be string)
+        try:
+            ride_doc = trips_collection.find_one({"_id": _safe_object_id(ride_id)})
+        except Exception:
+            ride_doc = None
+
+        if not ride_doc:
             return Response({"error": "Ride not found"}, status=404)
 
-        total_seats = ride.get("total_seats", 0)
-        booked_seats = ride.get("booked_seats", []) or []
+        total_seats = ride_doc.get("total_seats", 0)
+        booked_seats = ride_doc.get("booked_seats", []) or []
 
         # Validations
         if total_seats <= 0:
@@ -201,11 +228,11 @@ class BookRideView(APIView):
 
         # Create booking object stored in DB
         booking_doc = {
-            "ride_id": str(ride["_id"]),
+            "ride_id": str(ride_doc.get("_id")),
             "user_id": user_id,
             "email": email,
             "seat_number": seat_number,
-            "price": int(ride.get("price", 0)),
+            "price": int(ride_doc.get("price", 0)),
             "status": "pending",
             "created_at": datetime.utcnow()
         }
@@ -213,9 +240,9 @@ class BookRideView(APIView):
         insert_result = bookings_collection.insert_one(booking_doc)
         booking_id = str(insert_result.inserted_id)
 
-        # Update ride seat lists and counts
+        # Update ride seat lists and counts (push booked seat and decrement available)
         trips_collection.update_one(
-            {"_id": ride["_id"]},
+            {"_id": _safe_object_id(ride_doc.get("_id"))},
             {
                 "$push": {"booked_seats": seat_number},
                 "$inc": {"available_seats": -1}
@@ -227,13 +254,13 @@ class BookRideView(APIView):
             "booking_id": booking_id,
             "seat_count": 1,
             "seat_number": seat_number,
-            "total_price": int(ride.get("price", 0)),
+            "total_price": int(ride_doc.get("price", 0)),
             "status": "pending",
             "ride": {
-                "origin": ride.get("origin"),
-                "destination": ride.get("destination"),
-                "departure_time": ride.get("departure_time"),
-                "price": int(ride.get("price", 0))
+                "origin": ride_doc.get("origin"),
+                "destination": ride_doc.get("destination"),
+                "departure_time": ride_doc.get("departure_time"),
+                "price": int(ride_doc.get("price", 0))
             }
         }
 
@@ -255,10 +282,9 @@ class UserBookingsView(APIView):
 
         out = []
         for b in bookings:
-            # convert ObjectId and include ride summary
             ride = None
             try:
-                ride_doc = trips_collection.find_one({"_id": ObjectId(b.get("ride_id"))})
+                ride_doc = trips_collection.find_one({"_id": _safe_object_id(b.get("ride_id"))})
                 if ride_doc:
                     ride = {
                         "origin": ride_doc.get("origin"),
@@ -292,14 +318,18 @@ class BookingDetailView(APIView):
 
         user_id = payload.get("user_id")
 
-        booking = bookings_collection.find_one({"_id": ObjectId(booking_id), "user_id": user_id})
+        try:
+            booking = bookings_collection.find_one({"_id": _safe_object_id(booking_id), "user_id": user_id})
+        except Exception:
+            booking = None
+
         if not booking:
             return Response({"error": "Booking not found"}, status=404)
 
         # attach ride summary
         ride = None
         try:
-            ride_doc = trips_collection.find_one({"_id": ObjectId(booking.get("ride_id"))})
+            ride_doc = trips_collection.find_one({"_id": _safe_object_id(booking.get("ride_id"))})
             if ride_doc:
                 ride = {
                     "origin": ride_doc.get("origin"),
@@ -326,10 +356,53 @@ class MarkPaidView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, booking_id):
-        result = bookings_collection.update_one({"_id": ObjectId(booking_id)}, {"$set": {"status": "paid"}})
-        if result.matched_count == 0:
+        try:
+            result = bookings_collection.update_one({"_id": _safe_object_id(booking_id)}, {"$set": {"status": "paid"}})
+        except Exception:
+            result = None
+
+        if not result or result.matched_count == 0:
             return Response({"error": "Booking not found"}, status=404)
         return Response({"message": "Payment confirmed", "status": "paid"}, status=200)
+
+
+# ===================== DASHBOARD: SUMMARY =====================
+class DashboardSummaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        token = request.headers.get("Authorization", "").replace("Bearer ", "")
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        except jwt.InvalidTokenError:
+            return Response({"error": "Unauthorized"}, status=401)
+
+        user_id = payload.get("user_id")
+
+        total_trips = bookings_collection.count_documents({"user_id": user_id})
+
+        # sum paid payments
+        total_payments = 0.0
+        try:
+            for p in payments_collection.find({"user_id": user_id, "status": "paid"}):
+                try:
+                    total_payments += float(p.get("amount", 0) or 0)
+                except Exception:
+                    pass
+        except Exception:
+            total_payments = 0.0
+
+        pending_count = payments_collection.count_documents({"user_id": user_id, "status": "pending"})
+
+        travel_history_count = total_trips
+
+        return Response({
+            "total_trips": total_trips,
+            "total_payments": total_payments,
+            "pending_payments": pending_count,
+            "travel_history_count": travel_history_count
+        }, status=200)
+
 
 # ===================== DASHBOARD: USER BOOKINGS =====================
 class DashboardBookingsView(APIView):
@@ -345,28 +418,33 @@ class DashboardBookingsView(APIView):
 
         user_id = payload.get("user_id")
 
-        bookings = list(bookings_collection.find({"user_id": user_id}))
+        bookings = list(bookings_collection.find({"user_id": user_id}).sort("created_at", -1))
         output = []
 
         for b in bookings:
-            ride_doc = trips_collection.find_one({"_id": ObjectId(b["ride_id"])})
-            ride = {
-                "from": ride_doc.get("origin"),
-                "to": ride_doc.get("destination"),
-                "date": ride_doc.get("departure_time"),
-                "price": ride_doc.get("price")
-            } if ride_doc else None
+            ride_doc = trips_collection.find_one({"_id": _safe_object_id(b.get("ride_id"))})
+            if ride_doc:
+                route_from = ride_doc.get("origin", "Unknown")
+                route_to = ride_doc.get("destination", "Unknown")
+                date = ride_doc.get("departure_time") or b.get("created_at")
+                price = ride_doc.get("price", b.get("price", 0))
+            else:
+                route_from = b.get("from") or "Unknown"
+                route_to = b.get("to") or "Unknown"
+                date = b.get("created_at")
+                price = b.get("price", 0)
 
             output.append({
-                "booking_id": str(b["_id"]),
-                "seat_number": b.get("seat_number"),
-                "amount": b.get("price"),
-                "payment_status": b.get("status"),
-                "ride": ride
+                "booking_id": str(b.get("_id")),
+                "route_from": route_from,
+                "route_to": route_to,
+                "date": date,
+                "amount": price,
+                "status": b.get("status", "pending"),
+                "seat_number": b.get("seat_number", None)
             })
 
         return Response(output, status=200)
-
 
 
 # ===================== DASHBOARD: USER PAYMENTS =====================
@@ -374,7 +452,7 @@ class DashboardPaymentsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """Return list of payments for dashboard"""
+        """Return list of payments for dashboard (paid)"""
         token = request.headers.get("Authorization", "").replace("Bearer ", "")
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
@@ -382,14 +460,19 @@ class DashboardPaymentsView(APIView):
             return Response({"error": "Unauthorized"}, status=401)
 
         user_id = payload.get("user_id")
-        payments = list(payments_collection.find({"user_id": user_id}))
+        payments = list(payments_collection.find({"user_id": user_id, "status": "paid"}).sort("created_at", -1))
 
+        out = []
         for p in payments:
-            p["_id"] = str(p["_id"])
-            p["booking_id"] = str(p.get("booking_id", ""))
-
-        return Response(payments, status=200)
-
+            out.append({
+                "payment_id": str(p.get("_id")),
+                "booking_id": str(p.get("booking_id", "")),
+                "amount": float(p.get("amount", 0) or 0),
+                "status": p.get("status"),
+                "transaction_id": p.get("transaction_id"),
+                "created_at": p.get("created_at")
+            })
+        return Response(out, status=200)
 
 
 # ===================== DASHBOARD: PENDING PAYMENTS =====================
@@ -405,14 +488,22 @@ class DashboardPendingPaymentsView(APIView):
             return Response({"error": "Unauthorized"}, status=401)
 
         user_id = payload.get("user_id")
-        payments = list(payments_collection.find({"user_id": user_id, "status": "pending"}))
+        payments = list(payments_collection.find({"user_id": user_id, "status": "pending"}).sort("created_at", -1))
 
+        out = []
         for p in payments:
-            p["_id"] = str(p["_id"])
-            p["booking_id"] = str(p.get("booking_id", ""))
+            out.append({
+                "payment_id": str(p.get("_id")),
+                "booking_id": str(p.get("booking_id", "")),
+                "amount": float(p.get("amount", 0) or 0),
+                "status": p.get("status"),
+                "transaction_id": p.get("transaction_id"),
+                "created_at": p.get("created_at")
+            })
+        return Response(out, status=200)
 
-        return Response(payments, status=200)
 
+# ------------------- PAYMENT WEBHOOK / VERIFICATION -------------------
 @api_view(["POST"])
 def verify_payment(request):
     data = request.data
@@ -427,31 +518,56 @@ def verify_payment(request):
     if not booking_id:
         return Response({"error": "booking_id is required"}, status=400)
 
-    # 1️⃣ Save payment to database
-    payments_collection.insert_one({
-        "user_id": user_id,
-        "booking_id": booking_id,
-        "amount": amount,
-        "status": "paid",
-        "transaction_id": transaction_id,
-        "created_at": datetime.utcnow()
-    })
+    # try to get user_id from booking if not supplied
+    try:
+        stored_booking = bookings_collection.find_one({"_id": _safe_object_id(booking_id)})
+        if stored_booking and not user_id:
+            user_id = stored_booking.get("user_id")
+    except Exception:
+        stored_booking = None
 
-    # 2️⃣ Mark booking as paid
-    bookings_collection.update_one(
-        {"_id": ObjectId(booking_id)},
-        {"$set": {"status": "paid"}}
-    )
+    # store payment (use safe conversions)
+    try:
+        payments_collection.insert_one({
+            "user_id": user_id,
+            "booking_id": booking_id,
+            "amount": float(amount or 0),
+            "status": "paid",
+            "transaction_id": transaction_id,
+            "created_at": datetime.utcnow()
+        })
+    except Exception:
+        # fallback: store with raw amount
+        payments_collection.insert_one({
+            "user_id": user_id,
+            "booking_id": booking_id,
+            "amount": amount,
+            "status": "paid",
+            "transaction_id": transaction_id,
+            "created_at": datetime.utcnow()
+        })
 
-    # 3️⃣ Send Telegram alert
-    message = f"""
+    # mark booking as paid if possible
+    try:
+        bookings_collection.update_one(
+            {"_id": _safe_object_id(booking_id)},
+            {"$set": {"status": "paid"}}
+        )
+    except Exception:
+        pass
+
+    # send telegram alert (best-effort)
+    try:
+        message = f"""
 💳 <b>New Payment Received!</b>
 👤 <b>Name:</b> {name}
 📧 <b>Email:</b> {email}
 📦 <b>Booking ID:</b> {booking_id}
 💰 <b>Amount:</b> ₦{amount}
 🧾 <b>Transaction ID:</b> {transaction_id}
-    """
-    send_telegram_alert(message)
+"""
+        send_telegram_alert(message)
+    except Exception:
+        pass
 
     return Response({"message": "Payment stored & verified."}, status=200)
