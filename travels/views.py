@@ -12,12 +12,14 @@ from rest_framework.decorators import api_view
 
 from .db import admins_collection, trips_collection, bookings_collection, payments_collection
 from .repositories import AdminRepository
-from .utils import generate_jwt, send_telegram_alert
+from .utils import generate_jwt
 
 SECRET_KEY = settings.SECRET_KEY
 
 
-# ---------------- Helper ----------------
+# -------------------------------------------------
+# SAFE OBJECT ID
+# -------------------------------------------------
 def _safe_object_id(val):
     if not val:
         return None
@@ -27,7 +29,9 @@ def _safe_object_id(val):
         return val
 
 
-# ------------------- ADMIN AUTH -------------------
+# -------------------------------------------------
+# ADMIN SIGNUP
+# -------------------------------------------------
 class AdminSignupView(APIView):
     permission_classes = [AllowAny]
 
@@ -51,6 +55,9 @@ class AdminSignupView(APIView):
         return Response({"message": "Admin created"}, status=201)
 
 
+# -------------------------------------------------
+# ADMIN LOGIN
+# -------------------------------------------------
 class AdminLoginView(APIView):
     permission_classes = [AllowAny]
 
@@ -64,7 +71,6 @@ class AdminLoginView(APIView):
 
         stored_password = admin.get("password", "")
 
-        # Handle migration from plaintext
         if dj_check_password(password, stored_password):
             pass
         elif password == stored_password:
@@ -81,7 +87,9 @@ class AdminLoginView(APIView):
         }, status=200)
 
 
-# ------------------- ADMIN RIDE MANAGEMENT -------------------
+# -------------------------------------------------
+# ADMIN RIDE CRUD
+# -------------------------------------------------
 class AdminRideView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
 
@@ -136,21 +144,14 @@ class AdminRideView(APIView):
         return Response({"message": "Ride deleted"}, status=200)
 
 
-# ------------------- USER: LIST RIDES -------------------
+# -------------------------------------------------
+# LIST RIDES
+# -------------------------------------------------
 class RideListView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        rides = list(trips_collection.find({}, {
-            "_id": 1,
-            "origin": 1,
-            "destination": 1,
-            "departure_time": 1,
-            "total_seats": 1,
-            "available_seats": 1,
-            "booked_seats": 1,
-            "price": 1
-        }))
+        rides = list(trips_collection.find({}))
 
         for r in rides:
             r["_id"] = str(r["_id"])
@@ -158,7 +159,9 @@ class RideListView(APIView):
         return Response(rides, status=200)
 
 
-# ------------------- BOOKINGS -------------------
+# -------------------------------------------------
+# BOOK A RIDE
+# -------------------------------------------------
 class BookRideView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -180,17 +183,16 @@ class BookRideView(APIView):
 
         booking = {
             "ride_id": str(ride["_id"]),
-            "user_id": user_id,
+            "user": str(user_id),
             "email": email,
             "seat_number": seat_number,
-            "price": int(ride["price"]),
-            "status": "pending",
+            "amount": int(ride["price"]),
+            "payment_status": "unpaid",
             "created_at": datetime.utcnow()
         }
 
         result = bookings_collection.insert_one(booking)
 
-        # Update ride seats
         trips_collection.update_one(
             {"_id": ride["_id"]},
             {
@@ -204,65 +206,122 @@ class BookRideView(APIView):
         return Response(booking, status=201)
 
 
-# ------------------- USER BOOKINGS -------------------
+# -------------------------------------------------
+# USER BOOKINGS LIST
+# -------------------------------------------------
 class UserBookingsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         token = request.headers.get("Authorization", "").replace("Bearer ", "")
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        user_id = payload["user_id"]
+        user_id = str(payload["user_id"])
 
-        bookings = list(bookings_collection.find({"user_id": user_id}))
+        bookings = list(bookings_collection.find({"user": user_id}))
 
-        output = []
         for b in bookings:
-            ride = trips_collection.find_one({"_id": _safe_object_id(b["ride_id"])})
-            output.append({
-                "booking_id": str(b["_id"]),
-                "seat_number": b["seat_number"],
-                "status": b["status"],
-                "total_price": b.get("price", 0),
-                "ride": {
-                    "origin": ride["origin"],
-                    "destination": ride["destination"],
-                    "departure_time": ride["departure_time"]
-                } if ride else None
-            })
+            b["_id"] = str(b["_id"])
 
-        return Response(output, status=200)
+        return Response(bookings, status=200)
 
 
-# ------------------- DASHBOARD SUMMARY -------------------
-class DashboardSummaryView(APIView):
+# -------------------------------------------------
+# BOOKING DETAIL
+# -------------------------------------------------
+class BookingDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, booking_id):
+        booking = bookings_collection.find_one({"_id": _safe_object_id(booking_id)})
+        if not booking:
+            return Response({"error": "Booking not found"}, status=404)
+
+        booking["_id"] = str(booking["_id"])
+        return Response(booking, status=200)
+
+
+# -------------------------------------------------
+# MARK BOOKING AS PAID
+# -------------------------------------------------
+class MarkPaidView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, booking_id):
+        booking = bookings_collection.find_one({"_id": _safe_object_id(booking_id)})
+        if not booking:
+            return Response({"error": "Booking not found"}, status=404)
+
+        bookings_collection.update_one(
+            {"_id": booking["_id"]},
+            {"$set": {"payment_status": "paid"}}
+        )
+
+        return Response({"message": "Payment marked as paid"}, status=200)
+
+
+# -------------------------------------------------
+# DASHBOARD — RECENT BOOKINGS
+# -------------------------------------------------
+class DashboardBookingsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         token = request.headers.get("Authorization", "").replace("Bearer ", "")
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        user_id = payload["user_id"]
+        user_id = str(payload["user_id"])
 
-        total_trips = bookings_collection.count_documents({"user_id": user_id})
+        bookings = list(
+            bookings_collection.find({"user": user_id})
+            .sort("created_at", -1)  
+            .limit(5)
+        )
 
-        total_payments = sum([
-            float(p.get("amount", 0))
-            for p in payments_collection.find({"user_id": user_id, "status": "paid"})
-        ])
+        for b in bookings:
+            b["_id"] = str(b["_id"])
 
-        pending = payments_collection.count_documents({
-            "user_id": user_id,
-            "status": {"$in": ["pending", "unpaid"]}
+        return Response({"recent_bookings": bookings}, status=200)
+
+
+# -------------------------------------------------
+# DASHBOARD — TOTAL PAYMENTS
+# -------------------------------------------------
+class DashboardPaymentsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        token = request.headers.get("Authorization", "").replace("Bearer ", "")
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        user_id = str(payload["user_id"])
+
+        payments = list(payments_collection.find({"user_id": user_id}))
+
+        total = sum(float(p.get("amount", 0)) for p in payments)
+
+        return Response({"total_payments": total}, status=200)
+
+
+# -------------------------------------------------
+# DASHBOARD — PENDING PAYMENTS
+# -------------------------------------------------
+class DashboardPendingPaymentsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        token = request.headers.get("Authorization", "").replace("Bearer ", "")
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        user_id = str(payload["user_id"])
+
+        pending = bookings_collection.count_documents({
+            "user": user_id,
+            "payment_status": {"$ne": "paid"}
         })
 
-        return Response({
-            "total_trips": total_trips,
-            "total_payments": total_payments,
-            "pending_payments": pending,
-            "travel_history_count": total_trips
-        })
+        return Response({"pending_payments": pending}, status=200)
 
 
-# ------------------- PAYMENT WEBHOOK -------------------
+# -------------------------------------------------
+# PAYMENT WEBHOOK (FLUTTERWAVE)
+# -------------------------------------------------
 @api_view(["POST"])
 def verify_payment(request):
     data = request.data
@@ -272,7 +331,7 @@ def verify_payment(request):
 
     booking = bookings_collection.find_one({"_id": _safe_object_id(booking_id)})
     if booking and not user_id:
-        user_id = booking.get("user_id")
+        user_id = booking.get("user")
 
     payments_collection.insert_one({
         "booking_id": booking_id,
@@ -285,7 +344,8 @@ def verify_payment(request):
 
     bookings_collection.update_one(
         {"_id": _safe_object_id(booking_id)},
-        {"$set": {"status": "paid"}}
+        {"$set": {"payment_status": "paid"}}
     )
 
     return Response({"message": "Payment verified"}, status=200)
+
