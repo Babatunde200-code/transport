@@ -260,64 +260,86 @@ class MarkPaidView(APIView):
 
 
 # -------------------------------------------------
-# DASHBOARD — RECENT BOOKINGS
-# -------------------------------------------------
+# ------------------- DASHBOARD LIST VIEWS -------------------
+
 class DashboardBookingsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         token = request.headers.get("Authorization", "").replace("Bearer ", "")
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        user_id = str(payload["user_id"])
+        user_id = payload["user_id"]
 
-        bookings = list(
-            bookings_collection.find({"user": user_id})
-            .sort("created_at", -1)  
-            .limit(5)
-        )
+        bookings = list(bookings_collection.find({"user_id": user_id}))
 
+        output = []
         for b in bookings:
-            b["_id"] = str(b["_id"])
+            ride = trips_collection.find_one({"_id": _safe_object_id(b["ride_id"])})
+            output.append({
+                "booking_id": str(b["_id"]),
+                "seat_number": b.get("seat_number"),
+                "price": b.get("price"),
+                "status": b.get("status"),
+                "created_at": b.get("created_at"),
+                "ride": {
+                    "origin": ride["origin"] if ride else None,
+                    "destination": ride["destination"] if ride else None,
+                    "departure_time": ride["departure_time"] if ride else None
+                }
+            })
 
-        return Response({"recent_bookings": bookings}, status=200)
+        return Response(output, status=200)
 
 
-# -------------------------------------------------
-# DASHBOARD — TOTAL PAYMENTS
-# -------------------------------------------------
 class DashboardPaymentsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         token = request.headers.get("Authorization", "").replace("Bearer ", "")
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        user_id = str(payload["user_id"])
+        user_id = payload["user_id"]
 
         payments = list(payments_collection.find({"user_id": user_id}))
 
-        total = sum(float(p.get("amount", 0)) for p in payments)
+        output = []
+        for p in payments:
+            output.append({
+                "payment_id": str(p["_id"]),
+                "booking_id": p.get("booking_id"),
+                "amount": p.get("amount", 0),
+                "status": p.get("status", "paid"),
+                "transaction_id": p.get("transaction_id"),
+                "created_at": p.get("created_at")
+            })
 
-        return Response({"total_payments": total}, status=200)
+        return Response(output, status=200)
 
 
-# -------------------------------------------------
-# DASHBOARD — PENDING PAYMENTS
-# -------------------------------------------------
 class DashboardPendingPaymentsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         token = request.headers.get("Authorization", "").replace("Bearer ", "")
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        user_id = str(payload["user_id"])
+        user_id = payload["user_id"]
 
-        pending = bookings_collection.count_documents({
-            "user": user_id,
-            "payment_status": {"$ne": "paid"}
-        })
+        pending = list(payments_collection.find({
+            "user_id": user_id,
+            "status": {"$in": ["pending", "unpaid"]}
+        }))
 
-        return Response({"pending_payments": pending}, status=200)
+        output = []
+        for p in pending:
+            output.append({
+                "payment_id": str(p["_id"]),
+                "booking_id": p.get("booking_id"),
+                "amount": p.get("amount", 0),
+                "status": p.get("status", "pending"),
+                "transaction_id": p.get("transaction_id"),
+                "created_at": p.get("created_at")
+            })
 
+        return Response(output, status=200)
 
 # -------------------------------------------------
 # PAYMENT WEBHOOK (FLUTTERWAVE)
