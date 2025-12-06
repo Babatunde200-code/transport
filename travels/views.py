@@ -12,6 +12,7 @@ from rest_framework.decorators import api_view
 from .db import admins_collection, trips_collection, bookings_collection, payments_collection
 from .repositories import AdminRepository
 from .utils import generate_jwt, send_telegram_alert
+from .models import Booking, Payment
 
 SECRET_KEY = settings.SECRET_KEY
 
@@ -409,99 +410,80 @@ class DashboardBookingsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """Return bookings with ride summary (Dashboard)"""
-        token = request.headers.get("Authorization", "").replace("Bearer ", "")
-        try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        except jwt.InvalidTokenError:
-            return Response({"error": "Unauthorized"}, status=401)
+        """Return recent bookings for THIS USER or ALL (if admin)."""
 
-        user_id = payload.get("user_id")
+        user = request.user
 
-        bookings = list(bookings_collection.find({"user_id": user_id}).sort("created_at", -1))
-        output = []
+        if user.is_staff:
+            # Admin sees all bookings
+            bookings = Booking.objects.all().order_by("-created_at")[:20]
+        else:
+            # Normal user sees only their own
+            bookings = Booking.objects.filter(user_id=user.id).order_by("-created_at")[:20]
 
-        for b in bookings:
-            ride_doc = trips_collection.find_one({"_id": _safe_object_id(b.get("ride_id"))})
-            if ride_doc:
-                route_from = ride_doc.get("origin", "Unknown")
-                route_to = ride_doc.get("destination", "Unknown")
-                date = ride_doc.get("departure_time") or b.get("created_at")
-                price = ride_doc.get("price", b.get("price", 0))
-            else:
-                route_from = b.get("from") or "Unknown"
-                route_to = b.get("to") or "Unknown"
-                date = b.get("created_at")
-                price = b.get("price", 0)
+        serialized = [
+            {
+                "origin": b.origin,
+                "destination": b.destination,
+                "date": b.created_at.strftime("%Y-%m-%d"),
+                "amount": b.amount,
+                "payment_status": b.payment_status,
+            }
+            for b in bookings
+        ]
 
-            output.append({
-                "booking_id": str(b.get("_id")),
-                "route_from": route_from,
-                "route_to": route_to,
-                "date": date,
-                "amount": price,
-                "status": b.get("status", "pending"),
-                "seat_number": b.get("seat_number", None)
-            })
-
-        return Response(output, status=200)
+        return Response({
+            "recent_bookings": serialized
+        }, status=200)
 
 
-# ===================== DASHBOARD: USER PAYMENTS =====================
+
+# ==========================================================
+# ✅ DASHBOARD — TOTAL PAYMENTS (sum)
+# ==========================================================
 class DashboardPaymentsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """Return list of payments for dashboard (paid)"""
-        token = request.headers.get("Authorization", "").replace("Bearer ", "")
-        try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        except jwt.InvalidTokenError:
-            return Response({"error": "Unauthorized"}, status=401)
+        """Return the TOTAL amount paid by this user or all users if admin."""
 
-        user_id = payload.get("user_id")
-        payments = list(payments_collection.find({"user_id": user_id, "status": "paid"}).sort("created_at", -1))
+        user = request.user
 
-        out = []
-        for p in payments:
-            out.append({
-                "payment_id": str(p.get("_id")),
-                "booking_id": str(p.get("booking_id", "")),
-                "amount": float(p.get("amount", 0) or 0),
-                "status": p.get("status"),
-                "transaction_id": p.get("transaction_id"),
-                "created_at": p.get("created_at")
-            })
-        return Response(out, status=200)
+        if user.is_staff:
+            payments = Payment.objects.filter(status="paid")
+        else:
+            payments = Payment.objects.filter(user_id=user.id, status="paid")
+
+        total = sum([p.amount for p in payments])
+
+        return Response({
+            "total_payments": total
+        }, status=200)
 
 
-# ===================== DASHBOARD: PENDING PAYMENTS =====================
+
+# ==========================================================
+# ✅ DASHBOARD — PENDING PAYMENTS (count)
+# ==========================================================
 class DashboardPendingPaymentsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        """Return pending payments only"""
-        token = request.headers.get("Authorization", "").replace("Bearer ", "")
-        try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        except jwt.InvalidTokenError:
-            return Response({"error": "Unauthorized"}, status=401)
+        """Return the number of unpaid or pending payments."""
 
-        user_id = payload.get("user_id")
-        payments = list(payments_collection.find({"user_id": user_id, "status": "pending"}).sort("created_at", -1))
+        user = request.user
 
-        out = []
-        for p in payments:
-            out.append({
-                "payment_id": str(p.get("_id")),
-                "booking_id": str(p.get("booking_id", "")),
-                "amount": float(p.get("amount", 0) or 0),
-                "status": p.get("status"),
-                "transaction_id": p.get("transaction_id"),
-                "created_at": p.get("created_at")
-            })
-        return Response(out, status=200)
+        if user.is_staff:
+            pending = Payment.objects.filter(status__in=["pending", "unpaid"])
+        else:
+            pending = Payment.objects.filter(
+                user_id=user.id,
+                status__in=["pending", "unpaid"]
+            )
 
+        return Response({
+            "pending_payments": pending.count()
+        }, status=200)
 
 # ------------------- PAYMENT WEBHOOK / VERIFICATION -------------------
 @api_view(["POST"])
