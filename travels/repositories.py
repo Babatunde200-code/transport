@@ -10,10 +10,10 @@ class AdminRepository:
         return admins_collection.find_one({"email": email})
 
     @staticmethod
-    def update_password(admin_id, new_password):
+    def update_password(admin_id, hashed_password):
         admins_collection.update_one(
-            {"_id": ObjectId(admin_id)},
-            {"$set": {"password": make_password(new_password)}}
+            {"_id": ObjectId(admin_id) if isinstance(admin_id, str) else admin_id},
+            {"$set": {"password": hashed_password}}
         )
 class PaymentRepository:
     

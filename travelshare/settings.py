@@ -17,14 +17,6 @@ environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 MONGO_URI = env("MONGO_URI")
 MONGO_DB_NAME = env("MONGO_DB_NAME")
 
-client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
-db = client[MONGO_DB_NAME]
-
-# Collections
-admins_collection = db["admins"]
-trips_collection = db["trips"]
-bookings_collection = db["bookings"]
-
 # ==========================
 # SECURITY
 # ==========================
@@ -159,6 +151,16 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
     "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+}
+
+# ==========================
+# DATABASES
+# ==========================
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
+    }
 }
 
 # ==========================

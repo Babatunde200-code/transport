@@ -3,12 +3,25 @@ import jwt
 import datetime
 from django.conf import settings
 from bson.objectid import ObjectId
-from pymongo import MongoClient
+from travelshare.mongo import get_db
 
-# connect to MongoDB
-client = MongoClient(settings.MONGO_URI)
-db = client[settings.MONGO_DB_NAME]
-users = db["users"]   # or "accounts_customeruser"
+class LazyCollection:
+    def __init__(self, collection_name):
+        self._collection_name = collection_name
+        self._collection = None
+
+    def _resolve(self):
+        if self._collection is None:
+            self._collection = get_db()[self._collection_name]
+        return self._collection
+
+    def __getattr__(self, name):
+        return getattr(self._resolve(), name)
+
+    def __getitem__(self, key):
+        return self._resolve()[key]
+
+users = LazyCollection("users")
 
 # password helpers
 def hash_password(password: str) -> bytes:
@@ -22,6 +35,7 @@ def generate_jwt(user_id: str, email: str):
     payload = {
         "user_id": str(user_id),
         "email": email,
+        "role": "user",  # default to user
         "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24),
         "iat": datetime.datetime.utcnow()
     }

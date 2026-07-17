@@ -1,12 +1,12 @@
 from bson import ObjectId
 from django.contrib.auth.hashers import make_password, check_password
 from datetime import datetime
-from .db import db
+from .db import users_collection, rides_collection, bookings_collection, payments_collection
 
 # MongoDB collections
-users = db["users"]
-rides = db["rides"]
-bookings = db["bookings"]
+users = users_collection
+rides = rides_collection
+bookings = bookings_collection
 
 
 # ===================== USER =====================
@@ -229,7 +229,7 @@ class Booking:
         }
 
 # ===================== PAYMENT =====================
-payments = db["payments"]
+payments = payments_collection
 
 class Payment:
     def __init__(self, user_id, booking_id, amount, status="pending", created_at=None, _id=None):

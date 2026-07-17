@@ -1,10 +1,23 @@
-import certifi
-from pymongo import MongoClient
-from django.conf import settings
+from travelshare.mongo import get_db
 
-client = MongoClient(settings.MONGO_URI, tlsCAFile=certifi.where())
-db = client[settings.MONGO_DB_NAME]
-users_collection = db["users"]
+class LazyCollection:
+    def __init__(self, collection_name):
+        self._collection_name = collection_name
+        self._collection = None
+
+    def _resolve(self):
+        if self._collection is None:
+            self._collection = get_db()[self._collection_name]
+        return self._collection
+
+    def __getattr__(self, name):
+        return getattr(self._resolve(), name)
+
+    def __getitem__(self, key):
+        return self._resolve()[key]
+
+users_collection = LazyCollection("users")
+
 
 class UserRepository:
     @staticmethod
@@ -35,4 +48,22 @@ class UserRepository:
                 "$set": {"is_verified": True},
                 "$unset": {"verification_code": ""},  # remove code after success
             }
+        )
+
+    @staticmethod
+    def update_user(email: str, update_dict: dict):
+        """
+        Updates a user document matched by email.
+        """
+        return users_collection.update_one({"email": email}, update_dict)
+
+    @staticmethod
+    def update_password(user_id, hashed_password: str):
+        """
+        Updates a user's password matched by user_id.
+        """
+        from bson import ObjectId
+        return users_collection.update_one(
+            {"_id": ObjectId(user_id) if isinstance(user_id, str) else user_id},
+            {"$set": {"password": hashed_password}}
         )

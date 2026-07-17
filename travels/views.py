@@ -166,17 +166,36 @@ class BookRideView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, ride_id):
-        token = request.headers.get("Authorization", "").replace("Bearer ", "")
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        user_id = None
+        email = None
+        if hasattr(request, "user") and request.user and request.user.is_authenticated:
+            user_id = getattr(request.user, "id", None)
+            email = getattr(request.user, "email", None)
 
-        user_id = payload["user_id"]
-        email = payload["email"]
+        if not user_id or not email:
+            try:
+                token = request.headers.get("Authorization", "").replace("Bearer ", "")
+                payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+                user_id = payload["user_id"]
+                email = payload["email"]
+            except Exception as e:
+                return Response({"error": "Unauthorized or invalid token: " + str(e)}, status=401)
 
-        seat_number = int(request.data.get("seat_number"))
+        seat_number_raw = request.data.get("seat_number")
+        if seat_number_raw is None:
+            return Response({"error": "Seat number is required"}, status=400)
+        try:
+            seat_number = int(seat_number_raw)
+        except (ValueError, TypeError):
+            return Response({"error": "Seat number must be an integer"}, status=400)
 
         ride = trips_collection.find_one({"_id": _safe_object_id(ride_id)})
         if not ride:
             return Response({"error": "Ride not found"}, status=404)
+
+        total_seats = ride.get("total_seats", 0)
+        if seat_number < 1 or seat_number > total_seats:
+            return Response({"error": f"Invalid seat number. Must be between 1 and {total_seats}."}, status=400)
 
         if seat_number in ride.get("booked_seats", []):
             return Response({"error": "Seat already taken"}, status=400)
@@ -256,6 +275,18 @@ class MarkPaidView(APIView):
             {"$set": {"payment_status": "paid"}}
         )
 
+        # Sync by inserting a paid entry into payments_collection if not exists
+        existing = payments_collection.find_one({"booking_id": str(booking["_id"])})
+        if not existing:
+            payments_collection.insert_one({
+                "booking_id": str(booking["_id"]),
+                "user_id": booking.get("user"),
+                "amount": booking.get("amount", 0),
+                "status": "paid",
+                "transaction_id": "manual_" + str(booking["_id"]),
+                "created_at": datetime.utcnow()
+            })
+
         return Response({"message": "Payment marked as paid"}, status=200)
 
 
@@ -266,11 +297,25 @@ class DashboardBookingsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        token = request.headers.get("Authorization", "").replace("Bearer ", "")
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        user_id = payload["user_id"]
+        user_id = None
+        if hasattr(request, "user") and request.user and request.user.is_authenticated:
+            user_id = getattr(request.user, "id", None)
 
-        bookings = list(bookings_collection.find({"user_id": user_id}))
+        if not user_id:
+            try:
+                token = request.headers.get("Authorization", "").replace("Bearer ", "")
+                payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+                user_id = payload["user_id"]
+            except Exception as e:
+                return Response({"error": "Unauthorized or invalid token: " + str(e)}, status=401)
+
+        user_id_str = str(user_id)
+        bookings = list(bookings_collection.find({
+            "$or": [
+                {"user": user_id_str},
+                {"user_id": user_id_str}
+            ]
+        }))
 
         output = []
         for b in bookings:
@@ -278,8 +323,8 @@ class DashboardBookingsView(APIView):
             output.append({
                 "booking_id": str(b["_id"]),
                 "seat_number": b.get("seat_number"),
-                "price": b.get("price"),
-                "status": b.get("status"),
+                "price": b.get("amount") or b.get("price"),
+                "status": b.get("payment_status") or b.get("status"),
                 "created_at": b.get("created_at"),
                 "ride": {
                     "origin": ride["origin"] if ride else None,
@@ -295,11 +340,22 @@ class DashboardPaymentsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        token = request.headers.get("Authorization", "").replace("Bearer ", "")
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        user_id = payload["user_id"]
+        user_id = None
+        if hasattr(request, "user") and request.user and request.user.is_authenticated:
+            user_id = getattr(request.user, "id", None)
 
-        payments = list(payments_collection.find({"user_id": user_id}))
+        if not user_id:
+            try:
+                token = request.headers.get("Authorization", "").replace("Bearer ", "")
+                payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+                user_id = payload["user_id"]
+            except Exception as e:
+                return Response({"error": "Unauthorized or invalid token: " + str(e)}, status=401)
+
+        user_id_str = str(user_id)
+        payments = list(payments_collection.find({
+            "$or": [{"user_id": user_id_str}, {"user_id": user_id}]
+        }))
 
         output = []
         for p in payments:
@@ -319,24 +375,59 @@ class DashboardPendingPaymentsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        token = request.headers.get("Authorization", "").replace("Bearer ", "")
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        user_id = payload["user_id"]
+        user_id = None
+        if hasattr(request, "user") and request.user and request.user.is_authenticated:
+            user_id = getattr(request.user, "id", None)
 
-        pending = list(payments_collection.find({
-            "user_id": user_id,
+        if not user_id:
+            try:
+                token = request.headers.get("Authorization", "").replace("Bearer ", "")
+                payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+                user_id = payload["user_id"]
+            except Exception as e:
+                return Response({"error": "Unauthorized or invalid token: " + str(e)}, status=401)
+
+        user_id_str = str(user_id)
+
+        # Get pending payments from payments_collection
+        pending_payments = list(payments_collection.find({
+            "$or": [{"user_id": user_id_str}, {"user_id": user_id}],
             "status": {"$in": ["pending", "unpaid"]}
         }))
 
+        # Get unpaid bookings from bookings_collection
+        unpaid_bookings = list(bookings_collection.find({
+            "$or": [{"user": user_id_str}, {"user_id": user_id_str}],
+            "payment_status": {"$in": ["unpaid", "pending"]}
+        }))
+
         output = []
-        for p in pending:
+        seen_booking_ids = set()
+
+        for p in pending_payments:
+            b_id = str(p.get("booking_id"))
+            seen_booking_ids.add(b_id)
             output.append({
                 "payment_id": str(p["_id"]),
-                "booking_id": p.get("booking_id"),
+                "booking_id": b_id,
                 "amount": p.get("amount", 0),
                 "status": p.get("status", "pending"),
                 "transaction_id": p.get("transaction_id"),
                 "created_at": p.get("created_at")
+            })
+
+        for b in unpaid_bookings:
+            b_id = str(b["_id"])
+            if b_id in seen_booking_ids:
+                continue
+            seen_booking_ids.add(b_id)
+            output.append({
+                "payment_id": None,
+                "booking_id": b_id,
+                "amount": b.get("amount", 0),
+                "status": "pending",
+                "transaction_id": None,
+                "created_at": b.get("created_at")
             })
 
         return Response(output, status=200)
