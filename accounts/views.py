@@ -28,17 +28,27 @@ class SignupView(APIView):
         email = data["email"]
         password = data["password"]
 
-        if UserRepository.find_by_email(email):
-            return Response({"error": "Email already exists"}, status=400)
-
-        verification_code = str(random.randint(100000, 999999))
-
-        UserRepository.create_user({
-            "email": email,
-            "password": make_password(password),
-            "is_verified": False,
-            "verification_code": verification_code,
-        })
+        existing_user = UserRepository.find_by_email(email)
+        if existing_user:
+            if existing_user.get("is_verified"):
+                return Response({"error": "Email already exists"}, status=400)
+            else:
+                # User exists but is not verified. Let's generate a new verification code and update user.
+                verification_code = str(random.randint(100000, 999999))
+                UserRepository.update_user(email, {
+                    "$set": {
+                        "password": make_password(password),
+                        "verification_code": verification_code
+                    }
+                })
+        else:
+            verification_code = str(random.randint(100000, 999999))
+            UserRepository.create_user({
+                "email": email,
+                "password": make_password(password),
+                "is_verified": False,
+                "verification_code": verification_code,
+            })
 
         try:
             send_mail(
@@ -49,6 +59,17 @@ class SignupView(APIView):
                 fail_silently=False,
             )
         except Exception as e:
+            if settings.DEBUG:
+                print(f"⚠️ Email sending failed: {str(e)}")
+                print(f"🔑 Verification Code for {email}: {verification_code}")
+                return Response(
+                    {
+                        "message": "Signup successful (Email sending failed, but you can complete verification).",
+                        "email": email,
+                        "verification_code": verification_code
+                    },
+                    status=201,
+                )
             return Response({"error": f"Failed to send email: {str(e)}"}, status=500)
 
         return Response(
@@ -106,6 +127,16 @@ class ResendVerificationView(APIView):
                 fail_silently=False,
             )
         except Exception as e:
+            if settings.DEBUG:
+                print(f"⚠️ Email sending failed: {str(e)}")
+                print(f"🔑 New Verification Code for {email}: {new_code}")
+                return Response(
+                    {
+                        "message": "New verification code generated (Email sending failed).",
+                        "verification_code": new_code
+                    },
+                    status=200,
+                )
             return Response({"error": f"Failed to send email: {str(e)}"}, status=500)
 
         return Response({"message": "New verification code sent to your email"}, status=200)
@@ -188,6 +219,16 @@ class ForgotPasswordView(APIView):
                 fail_silently=False,
             )
         except Exception as e:
+            if settings.DEBUG:
+                print(f"⚠️ Email sending failed: {str(e)}")
+                print(f"🔑 Password Reset Code for {email}: {reset_code}")
+                return Response(
+                    {
+                        "message": "Password reset code generated (Email sending failed).",
+                        "reset_code": reset_code
+                    },
+                    status=200,
+                )
             return Response({"error": f"Email sending failed: {str(e)}"}, status=500)
 
         return Response({"message": "Password reset code sent to your email"}, status=200)
