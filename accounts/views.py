@@ -20,65 +20,77 @@ class SignupView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = SignupSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=400)
-
-        data = serializer.validated_data
-        email = data["email"]
-        password = data["password"]
-
-        existing_user = UserRepository.find_by_email(email)
-        if existing_user:
-            if existing_user.get("is_verified"):
-                return Response({"error": "Email already exists"}, status=400)
-            else:
-                # User exists but is not verified. Let's generate a new verification code and update user.
-                verification_code = str(random.randint(100000, 999999))
-                UserRepository.update_user(email, {
-                    "$set": {
-                        "password": make_password(password),
-                        "verification_code": verification_code
-                    }
-                })
-        else:
-            verification_code = str(random.randint(100000, 999999))
-            UserRepository.create_user({
-                "email": email,
-                "password": make_password(password),
-                "is_verified": False,
-                "verification_code": verification_code,
-            })
-
         try:
-            send_mail(
-                subject="Verify Your Account",
-                message=f"Your verification code is {verification_code}",
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
-                fail_silently=False,
-            )
-        except Exception as e:
-            if settings.DEBUG:
-                print(f"⚠️ Email sending failed: {str(e)}")
-                print(f"🔑 Verification Code for {email}: {verification_code}")
-                return Response(
-                    {
-                        "message": "Signup successful (Email sending failed, but you can complete verification).",
-                        "email": email,
-                        "verification_code": verification_code
-                    },
-                    status=201,
-                )
-            return Response({"error": f"Failed to send email: {str(e)}"}, status=500)
+            serializer = SignupSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=400)
 
-        return Response(
-            {
-                "message": "Signup successful. Please check your email for the verification code.",
-                "email": email
-            },
-            status=201,
-        )
+            data = serializer.validated_data
+            email = data["email"]
+            password = data["password"]
+
+            existing_user = UserRepository.find_by_email(email)
+            if existing_user:
+                if existing_user.get("is_verified"):
+                    return Response({"error": "Email already exists"}, status=400)
+                else:
+                    # User exists but is not verified. Let's generate a new verification code and update user.
+                    verification_code = str(random.randint(100000, 999999))
+                    UserRepository.update_user(email, {
+                        "$set": {
+                            "password": make_password(password),
+                            "verification_code": verification_code
+                        }
+                    })
+            else:
+                verification_code = str(random.randint(100000, 999999))
+                UserRepository.create_user({
+                    "email": email,
+                    "password": make_password(password),
+                    "is_verified": False,
+                    "verification_code": verification_code,
+                })
+
+            try:
+                send_mail(
+                    subject="Verify Your Account",
+                    message=f"Your verification code is {verification_code}",
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[email],
+                    fail_silently=False,
+                )
+            except Exception as e:
+                if settings.DEBUG:
+                    print(f"⚠️ Email sending failed: {str(e)}")
+                    print(f"🔑 Verification Code for {email}: {verification_code}")
+                    return Response(
+                        {
+                            "message": "Signup successful (Email sending failed, but you can complete verification).",
+                            "email": email,
+                            "verification_code": verification_code
+                        },
+                        status=201,
+                    )
+                return Response({"error": f"Failed to send email: {str(e)}"}, status=500)
+
+            return Response(
+                {
+                    "message": "Signup successful. Please check your email for the verification code.",
+                    "email": email
+                },
+                status=201,
+            )
+        except Exception as err:
+            import traceback
+            tb = traceback.format_exc()
+            return Response(
+                {
+                    "error": "Unhandled Server Error",
+                    "details": str(err),
+                    "traceback": tb
+                },
+                status=500
+            )
 
 
 # ---------------- Verify Account ----------------
