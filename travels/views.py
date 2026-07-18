@@ -256,6 +256,16 @@ class BookingDetailView(APIView):
             return Response({"error": "Booking not found"}, status=404)
 
         booking["_id"] = str(booking["_id"])
+        
+        # Join ride details for the frontend review page
+        ride_id = booking.get("ride_id")
+        ride = None
+        if ride_id:
+            ride = trips_collection.find_one({"_id": _safe_object_id(ride_id)})
+            if ride:
+                ride["_id"] = str(ride["_id"])
+        
+        booking["ride"] = ride
         return Response(booking, status=200)
 
 
