@@ -9,7 +9,7 @@ _db = None
 def get_db():
     global _client, _db
     if _db is None:
-        _client = MongoClient(settings.MONGO_URI, tlsCAFile=certifi.where())
+        _client = MongoClient(settings.MONGO_URI, tlsCAFile=certifi.where(), serverSelectionTimeoutMS=5000)
         _db = _client[settings.MONGO_DB_NAME]
     return _db
 
