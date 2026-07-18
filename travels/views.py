@@ -220,7 +220,10 @@ class BookRideView(APIView):
             }
         )
 
-        booking["_id"] = str(result.inserted_id)
+        booking_id_str = str(result.inserted_id)
+        booking["_id"] = booking_id_str
+        booking["booking_id"] = booking_id_str
+        booking["id"] = booking_id_str
 
         return Response(booking, status=201)
 
@@ -239,7 +242,10 @@ class UserBookingsView(APIView):
         bookings = list(bookings_collection.find({"user": user_id}))
 
         for b in bookings:
-            b["_id"] = str(b["_id"])
+            booking_id_str = str(b["_id"])
+            b["_id"] = booking_id_str
+            b["booking_id"] = booking_id_str
+            b["id"] = booking_id_str
             # Join ride details
             ride_id = b.get("ride_id")
             ride = None
@@ -263,7 +269,10 @@ class BookingDetailView(APIView):
         if not booking:
             return Response({"error": "Booking not found"}, status=404)
 
-        booking["_id"] = str(booking["_id"])
+        booking_id_str = str(booking["_id"])
+        booking["_id"] = booking_id_str
+        booking["booking_id"] = booking_id_str
+        booking["id"] = booking_id_str
         
         # Join ride details for the frontend review page
         ride_id = booking.get("ride_id")
