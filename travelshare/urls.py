@@ -20,30 +20,9 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.http import JsonResponse
 
-def root_view(request):
-    import subprocess
-    import os
-    try:
-        commit = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("utf-8").strip()
-    except Exception as e:
-        commit = f"Unknown: {str(e)}"
-    
-    try:
-        from django.conf import settings as django_settings
-        with open(os.path.join(django_settings.BASE_DIR, "accounts/views.py"), "r") as f:
-            content_preview = f.read(500)
-    except Exception as e:
-        content_preview = f"Error reading file: {str(e)}"
-
-    return JsonResponse({
-        "status": "Server is live",
-        "commit": commit,
-        "content_preview_has_try_except": "Unhandled Server Error" in content_preview
-    })
-
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("", root_view),
+    path("", lambda request: JsonResponse({"status": "Server is live"})),
 
     # API routes
     path("api/", include("accounts.urls")),
