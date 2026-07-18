@@ -240,6 +240,14 @@ class UserBookingsView(APIView):
 
         for b in bookings:
             b["_id"] = str(b["_id"])
+            # Join ride details
+            ride_id = b.get("ride_id")
+            ride = None
+            if ride_id:
+                ride = trips_collection.find_one({"_id": _safe_object_id(ride_id)})
+                if ride:
+                    ride["_id"] = str(ride["_id"])
+            b["ride"] = ride
 
         return Response(bookings, status=200)
 
