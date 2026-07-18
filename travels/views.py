@@ -246,6 +246,7 @@ class UserBookingsView(APIView):
             b["_id"] = booking_id_str
             b["booking_id"] = booking_id_str
             b["id"] = booking_id_str
+            b["price"] = b.get("amount") or b.get("price")
             # Join ride details
             ride_id = b.get("ride_id")
             ride = None
@@ -253,6 +254,12 @@ class UserBookingsView(APIView):
                 ride = trips_collection.find_one({"_id": _safe_object_id(ride_id)})
                 if ride:
                     ride["_id"] = str(ride["_id"])
+                    # Flatten ride fields for frontend compatibility
+                    b["origin"] = ride.get("origin")
+                    b["destination"] = ride.get("destination")
+                    b["departure_time"] = ride.get("departure_time")
+                    if not b["price"]:
+                        b["price"] = ride.get("price")
             b["ride"] = ride
 
         return Response(bookings, status=200)
@@ -273,6 +280,7 @@ class BookingDetailView(APIView):
         booking["_id"] = booking_id_str
         booking["booking_id"] = booking_id_str
         booking["id"] = booking_id_str
+        booking["price"] = booking.get("amount") or booking.get("price")
         
         # Join ride details for the frontend review page
         ride_id = booking.get("ride_id")
@@ -281,6 +289,12 @@ class BookingDetailView(APIView):
             ride = trips_collection.find_one({"_id": _safe_object_id(ride_id)})
             if ride:
                 ride["_id"] = str(ride["_id"])
+                # Flatten ride fields for frontend compatibility
+                booking["origin"] = ride.get("origin")
+                booking["destination"] = ride.get("destination")
+                booking["departure_time"] = ride.get("departure_time")
+                if not booking["price"]:
+                    booking["price"] = ride.get("price")
         
         booking["ride"] = ride
         return Response(booking, status=200)
@@ -347,8 +361,11 @@ class DashboardBookingsView(APIView):
         output = []
         for b in bookings:
             ride = trips_collection.find_one({"_id": _safe_object_id(b["ride_id"])})
+            booking_id_str = str(b["_id"])
             output.append({
-                "booking_id": str(b["_id"]),
+                "booking_id": booking_id_str,
+                "id": booking_id_str,
+                "_id": booking_id_str,
                 "seat_number": b.get("seat_number"),
                 "price": b.get("amount") or b.get("price"),
                 "status": b.get("payment_status") or b.get("status"),
