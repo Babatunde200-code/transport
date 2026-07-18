@@ -246,7 +246,7 @@ class UserBookingsView(APIView):
             b["_id"] = booking_id_str
             b["booking_id"] = booking_id_str
             b["id"] = booking_id_str
-            b["price"] = b.get("amount") or b.get("price")
+            
             # Join ride details
             ride_id = b.get("ride_id")
             ride = None
@@ -258,8 +258,18 @@ class UserBookingsView(APIView):
                     b["origin"] = ride.get("origin")
                     b["destination"] = ride.get("destination")
                     b["departure_time"] = ride.get("departure_time")
-                    if not b["price"]:
-                        b["price"] = ride.get("price")
+            
+            # Resolve fare/price from booking or joined ride
+            resolved_price = b.get("amount") or b.get("price")
+            if not resolved_price and ride:
+                resolved_price = ride.get("price")
+                
+            b["amount"] = resolved_price
+            b["price"] = resolved_price
+            b["fare"] = resolved_price
+            b["total_fare"] = resolved_price
+            b["total_trip_fare"] = resolved_price
+            
             b["ride"] = ride
 
         return Response(bookings, status=200)
@@ -280,7 +290,6 @@ class BookingDetailView(APIView):
         booking["_id"] = booking_id_str
         booking["booking_id"] = booking_id_str
         booking["id"] = booking_id_str
-        booking["price"] = booking.get("amount") or booking.get("price")
         
         # Join ride details for the frontend review page
         ride_id = booking.get("ride_id")
@@ -293,8 +302,17 @@ class BookingDetailView(APIView):
                 booking["origin"] = ride.get("origin")
                 booking["destination"] = ride.get("destination")
                 booking["departure_time"] = ride.get("departure_time")
-                if not booking["price"]:
-                    booking["price"] = ride.get("price")
+        
+        # Resolve fare/price from booking or joined ride
+        resolved_price = booking.get("amount") or booking.get("price")
+        if not resolved_price and ride:
+            resolved_price = ride.get("price")
+            
+        booking["amount"] = resolved_price
+        booking["price"] = resolved_price
+        booking["fare"] = resolved_price
+        booking["total_fare"] = resolved_price
+        booking["total_trip_fare"] = resolved_price
         
         booking["ride"] = ride
         return Response(booking, status=200)
