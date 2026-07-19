@@ -224,6 +224,31 @@ class BookRideView(APIView):
         booking["_id"] = booking_id_str
         booking["booking_id"] = booking_id_str
         booking["id"] = booking_id_str
+        
+        # Flatten ride fields for frontend compatibility
+        booking["origin"] = ride.get("origin")
+        booking["destination"] = ride.get("destination")
+        booking["departure_time"] = ride.get("departure_time")
+        
+        # Resolve all possible fare/price keys
+        resolved_price = booking.get("amount") or booking.get("price") or ride.get("price")
+        booking["amount"] = resolved_price
+        booking["price"] = resolved_price
+        booking["fare"] = resolved_price
+        booking["total_fare"] = resolved_price
+        booking["total_trip_fare"] = resolved_price
+        booking["totalTripFare"] = resolved_price
+        booking["totalFare"] = resolved_price
+        booking["tripFare"] = resolved_price
+        booking["bookingPrice"] = resolved_price
+        booking["bookingFare"] = resolved_price
+        booking["booking_price"] = resolved_price
+        booking["booking_fare"] = resolved_price
+        
+        # Include joined ride
+        ride_copy = dict(ride)
+        ride_copy["_id"] = str(ride_copy["_id"])
+        booking["ride"] = ride_copy
 
         return Response(booking, status=201)
 
@@ -269,6 +294,13 @@ class UserBookingsView(APIView):
             b["fare"] = resolved_price
             b["total_fare"] = resolved_price
             b["total_trip_fare"] = resolved_price
+            b["totalTripFare"] = resolved_price
+            b["totalFare"] = resolved_price
+            b["tripFare"] = resolved_price
+            b["bookingPrice"] = resolved_price
+            b["bookingFare"] = resolved_price
+            b["booking_price"] = resolved_price
+            b["booking_fare"] = resolved_price
             
             b["ride"] = ride
 
@@ -313,6 +345,13 @@ class BookingDetailView(APIView):
         booking["fare"] = resolved_price
         booking["total_fare"] = resolved_price
         booking["total_trip_fare"] = resolved_price
+        booking["totalTripFare"] = resolved_price
+        booking["totalFare"] = resolved_price
+        booking["tripFare"] = resolved_price
+        booking["bookingPrice"] = resolved_price
+        booking["bookingFare"] = resolved_price
+        booking["booking_price"] = resolved_price
+        booking["booking_fare"] = resolved_price
         
         booking["ride"] = ride
         return Response(booking, status=200)
